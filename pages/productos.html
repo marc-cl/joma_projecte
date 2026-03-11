@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Productos</title>
+    <link rel="stylesheet" href="../css/style.css" />
+  </head>
+  <body>
+    <header>
+      <h1>Productos</h1>
+      <nav>
+        <a href="../index.html">Inicio</a>
+        <a href="productos.html">Productos</a>
+        <a href="pedidos.html">Pedidos</a>
+        <a href="contacto.html">Contacto</a>
+        <a href="admin_productos.html">Admin Productos</a>
+        <a href="admin_pedidos.html">Admin Pedidos</a>
+      </nav>
+    </header>
+    <main>
+      <h2>Catàleg de productes</h2>
+      <div class="product-grid">
+        <div class="product-card">
+          <img
+            src="https://cdn-icons-png.flaticon.com/512/3081/3081559.png"
+            alt="Producte 1"
+          />
+          <h3>Producte 1</h3>
+          <p class="desc">Descripció breu del producte 1.</p>
+          <span class="preu">12,99 €</span>
+        </div>
+        <div class="product-card">
+          <img
+            src="https://cdn-icons-png.flaticon.com/512/3081/3081557.png"
+            alt="Producte 2"
+          />
+          <h3>Producte 2</h3>
+          <p class="desc">Descripció breu del producte 2.</p>
+          <span class="preu">8,50 €</span>
+        </div>
+        <div class="product-card">
+          <img
+            src="https://cdn-icons-png.flaticon.com/512/3081/3081558.png"
+            alt="Producte 3"
+          />
+          <h3>Producte 3</h3>
+          <p class="desc">Descripció breu del producte 3.</p>
+          <span class="preu">15,00 €</span>
+        </div>
+      </div>
+    </main>
+    <style>
+      .product-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+        gap: 2em;
+        margin-top: 2em;
+      }
+      .product-card {
+        background: #fff;
+        border-radius: 8px;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+        padding: 1.5em 1em 1em 1em;
+        text-align: center;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        transition: box-shadow 0.2s;
+      }
+      .product-card:hover {
+        box-shadow: 0 4px 16px rgba(42, 122, 228, 0.15);
+      }
+      .product-card img {
+        max-width: 80px;
+        margin-bottom: 1em;
+      }
+      .product-card h3 {
+        margin: 0.5em 0 0.2em 0;
+        font-size: 1.1em;
+        color: #2a7ae4;
+      }
+      .product-card .desc {
+        font-size: 0.97em;
+        color: #444;
+        margin-bottom: 0.7em;
+      }
+      .product-card .preu {
+        font-weight: bold;
+        color: #1a237e;
+        font-size: 1.1em;
+      }
+    </style>
+    <script src="../js/main.js"></script>
+  </body>
+</html>

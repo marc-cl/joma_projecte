@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<web-app xmlns="http://xmlns.jcp.org/xml/ns/javaee"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://xmlns.jcp.org/xml/ns/javaee http://xmlns.jcp.org/xml/ns/javaee/web-app_4_0.xsd"
+         version="4.0">
+    <display-name>Backend Tienda</display-name>
+    <servlet>
+        <servlet-name>ProductoServlet</servlet-name>
+        <servlet-class>com.tienda.servlets.ProductoServlet</servlet-class>
+    </servlet>
+    <servlet-mapping>
+        <servlet-name>ProductoServlet</servlet-name>
+        <url-pattern>/productos</url-pattern>
+    </servlet-mapping>
+    <servlet>
+        <servlet-name>PedidoServlet</servlet-name>
+        <servlet-class>com.tienda.servlets.PedidoServlet</servlet-class>
+    </servlet>
+    <servlet-mapping>
+        <servlet-name>PedidoServlet</servlet-name>
+        <url-pattern>/pedidos</url-pattern>
+    </servlet-mapping>
+    <servlet>
+        <servlet-name>CarritoServlet</servlet-name>
+        <servlet-class>com.tienda.servlets.CarritoServlet</servlet-class>
+    </servlet>
+    <servlet-mapping>
+        <servlet-name>CarritoServlet</servlet-name>
+        <url-pattern>/carrito</url-pattern>
+    </servlet-mapping>
+</web-app>

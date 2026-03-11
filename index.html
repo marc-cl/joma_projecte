@@ -1,0 +1,178 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Inici | Botiga Online</title>
+    <link rel="stylesheet" href="css/style.css" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Montserrat:wght@600&family=Roboto&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      :root {
+        --color-primari: #2a7ae4;
+        --color-secundari: #f4f4f4;
+        --color-text: #222;
+        --color-header: #1a237e;
+        --color-footer: #22223b;
+      }
+      body {
+        font-family: "Roboto", Arial, sans-serif;
+        background: var(--color-secundari);
+        margin: 0;
+        padding: 0;
+        min-height: 100vh;
+        display: flex;
+        flex-direction: column;
+      }
+      header {
+        background: var(--color-header);
+        color: #fff;
+        padding: 1.5em 2em 1em 2em;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+      }
+      .logo {
+        font-family: "Montserrat", Arial, sans-serif;
+        font-size: 2em;
+        letter-spacing: 2px;
+        font-weight: 600;
+      }
+      nav {
+        display: flex;
+        gap: 1em;
+      }
+      nav a {
+        color: #fff;
+        text-decoration: none;
+        font-weight: 500;
+        padding: 0.5em 1em;
+        border-radius: 4px;
+        transition: background 0.2s;
+      }
+      nav a:hover,
+      nav a.active {
+        background: var(--color-primari);
+      }
+      .container {
+        display: flex;
+        flex: 1;
+        min-height: 0;
+      }
+      aside {
+        background: #fff;
+        min-width: 180px;
+        padding: 2em 1em 2em 1em;
+        box-shadow: 2px 0 8px rgba(0, 0, 0, 0.04);
+        display: flex;
+        flex-direction: column;
+        gap: 1em;
+      }
+      aside a {
+        color: var(--color-header);
+        text-decoration: none;
+        font-weight: 500;
+        padding: 0.5em 0.8em;
+        border-radius: 4px;
+        transition: background 0.2s;
+      }
+      aside a:hover,
+      aside a.active {
+        background: var(--color-primari);
+        color: #fff;
+      }
+      main {
+        flex: 1;
+        padding: 2.5em 2em;
+        background: #fff;
+        border-radius: 0 0 8px 8px;
+        margin: 2em 2em 0 2em;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.07);
+        min-width: 0;
+      }
+      footer {
+        background: var(--color-footer);
+        color: #fff;
+        text-align: center;
+        padding: 1em 0;
+        margin-top: auto;
+        font-size: 1em;
+        letter-spacing: 1px;
+      }
+      @media (max-width: 900px) {
+        .container {
+          flex-direction: column;
+        }
+        aside {
+          flex-direction: row;
+          min-width: 0;
+          padding: 1em;
+          box-shadow: none;
+          border-bottom: 1px solid #eee;
+          justify-content: center;
+        }
+        main {
+          margin: 1em;
+        }
+      }
+      @media (max-width: 600px) {
+        header {
+          flex-direction: column;
+          align-items: flex-start;
+          padding: 1em;
+        }
+        .logo {
+          font-size: 1.3em;
+        }
+        aside {
+          flex-wrap: wrap;
+          gap: 0.5em;
+        }
+        main {
+          padding: 1em;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <span class="logo">Botiga Online</span>
+      <nav>
+        <a href="index.html" class="active">Inici</a>
+        <a href="pages/productos.html">Catàleg</a>
+        <a href="pages/pedidos.html">Comandes</a>
+        <a href="pages/contacto.html">Contacte</a>
+        <a href="pages/login.html">Accés</a>
+      </nav>
+    </header>
+    <div class="container">
+      <aside>
+        <a href="index.html" class="active">Inici</a>
+        <a href="pages/productos.html">Catàleg</a>
+        <a href="pages/pedidos.html">Comandes</a>
+        <a href="pages/pressupost.html">Pressupost</a>
+        <a href="pages/contacto.html">Contacte</a>
+        <a href="pages/admin_productos.html">Admin Productes</a>
+        <a href="pages/admin_pedidos.html">Admin Comandes</a>
+      </aside>
+      <main>
+        <h1>Benvingut/da a la Botiga Online</h1>
+        <p>
+          Descobreix els nostres productes i serveis. Utilitza el menú per
+          navegar per les diferents seccions.
+        </p>
+        <img
+          src="https://cdn-icons-png.flaticon.com/512/1170/1170678.png"
+          alt="Logo botiga"
+          style="max-width: 120px; margin: 2em 0; display: block"
+        />
+      </main>
+    </div>
+    <footer>&copy; 2026 Botiga Online | Desenvolupat per l'equip DAW</footer>
+    <script src="js/main.js"></script>
+  </body>
+</html>
