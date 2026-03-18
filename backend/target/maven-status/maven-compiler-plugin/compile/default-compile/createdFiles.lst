@@ -1,0 +1,5 @@
+com\tienda\servlets\ServletCarret.class
+com\tienda\productes\RepositoriArticles.class
+com\tienda\servlets\ServletArticle.class
+com\tienda\servlets\ServletComanda.class
+com\tienda\productes\Article.class

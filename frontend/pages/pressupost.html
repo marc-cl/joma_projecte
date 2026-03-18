@@ -1,0 +1,103 @@
+﻿<!DOCTYPE html>
+<html lang="ca">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Pressupost - PONPAPERConnect</title>
+  <link rel="stylesheet" href="../css/style.css">
+  <style>
+    .main-padding {
+      padding: 2rem;
+    }
+    .budget-layout {
+      display: grid;
+      grid-template-columns: 320px 1fr;
+      gap: 2rem;
+      align-items: start;
+      margin-top: 1rem;
+    }
+    .budget-image {
+      width: 100%;
+      border-radius: 12px;
+      box-shadow: 0 4px 18px rgba(0, 0, 0, 0.12);
+      background: #fff;
+      padding: 1rem;
+    }
+    .budget-form label {
+      display: block;
+      margin-bottom: 1rem;
+      font-weight: 600;
+    }
+    .budget-form input,
+    .budget-form textarea {
+      width: 100%;
+      margin-top: 0.35rem;
+      padding: 0.75rem;
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      font-family: inherit;
+      box-sizing: border-box;
+    }
+    .budget-form textarea {
+      min-height: 140px;
+      resize: vertical;
+    }
+    @media (max-width: 900px) {
+      .budget-layout {
+        grid-template-columns: 1fr;
+      }
+      .budget-image {
+        max-width: 320px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <header class="site-header">
+    <div class="logo">CIPEPONPAPER<span>Connect</span></div>
+    <nav class="site-nav">
+      <ul>
+        <li><a href="../index.html" data-i18n="nav.home">Inici</a></li>
+        <li><a href="productes.html" data-i18n="nav.products">Productes</a></li>
+        <li><a href="pressupost.html" class="active" data-i18n="nav.budget">Pressupost</a></li>
+        <li><a href="contacte.html" data-i18n="nav.contact">Contacte</a></li>
+        <li><a href="login.html" data-i18n="nav.login">Accedeix / Registra't</a></li>
+      </ul>
+    </nav>
+    <div class="menu-toggle" id="menuToggle">☰</div>
+  </header>
+
+  <main class="main-padding">
+    <h2>Sol·licitud de pressupost</h2>
+    <p>Explica'ns què necessites i et prepararem una proposta personalitzada.</p>
+
+    <div class="budget-layout">
+      <img class="budget-image" src="https://cdn-icons-png.flaticon.com/512/3081/3081559.png" alt="Imatge de pressupost">
+
+      <form id="budgetForm" class="budget-form">
+        <label>Nom
+          <input type="text" id="nom" name="nom" required>
+        </label>
+        <label>Correu electrònic
+          <input type="email" id="email" name="email" required>
+        </label>
+        <label>Detall de la sol·licitud
+          <textarea id="detall" name="detall" required></textarea>
+        </label>
+        <button type="submit" class="btn-cta">Enviar</button>
+      </form>
+    </div>
+  </main>
+
+  <script>
+    document.getElementById('budgetForm').addEventListener('submit', (e) => {
+      e.preventDefault();
+      alert('Sol·licitud enviada (simulada).');
+    });
+  </script>
+  <script src="../js/main.js"></script>
+
+
+</body>
+</html>
+

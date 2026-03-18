@@ -1,0 +1,66 @@
+﻿<!DOCTYPE html>
+<html lang="ca">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Àrea privada | Botiga Online</title>
+    <link rel="stylesheet" href="../css/style.css">
+  </head>
+  <body>
+    <header class="site-header">
+      <div class="logo">CIPEPONPAPER<span>Connect</span></div>
+      <nav class="site-nav">
+        <ul>
+          <li><a href="../index.html">Inici</a></li>
+          <li><a href="productes.html">Catàleg</a></li>
+          <li><a href="comandes.html">Comandes</a></li>
+          <li><a href="contacte.html">Contacte</a></li>
+        </ul>
+      </nav>
+      <div class="user-area">
+        <a href="login.html" id="user-name">Login</a>
+        <button type="button" id="logout-btn-header" style="display: none">
+          Tancar sessió
+        </button>
+      </div>
+    </header>
+
+    <main class="auth-page">
+      <h1>Àrea privada</h1>
+      <p id="welcome-text"></p>
+      <div id="msg"></div>
+    </main>
+
+    <footer class="site-footer">
+      <p>&copy; 2026 Botiga Online | Desenvolupat per l'equip DAW</p>
+    </footer>
+
+    <script>
+      const username = localStorage.getItem("username");
+      const lastVisitedPage = localStorage.getItem("lastVisitedPage");
+
+      if (!username) {
+        window.location.href = "login.html";
+      } else {
+        const fallback = "../index.html";
+        if (!lastVisitedPage) {
+          window.location.href = fallback;
+        } else {
+          try {
+            const url = new URL(lastVisitedPage, window.location.origin);
+            const path = url.pathname.toLowerCase();
+            const isAuthPath = path.endsWith("/pages/login.html") || path.endsWith("/pages/private.html");
+            window.location.href = isAuthPath ? fallback : `${url.pathname}${url.search}${url.hash}`;
+          } catch {
+            window.location.href = fallback;
+          }
+        }
+      }
+    </script>
+    <script src="../js/main.js"></script>
+  </body>
+</html>
+
+
+
+
