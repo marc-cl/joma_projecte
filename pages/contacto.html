@@ -1,26 +1,166 @@
-<!doctype html>
-<html lang="es">
-  <head>
-    <meta charset="UTF-8" />
-    <title>Contacto</title>
-    <link rel="stylesheet" href="../css/style.css" />
-  </head>
-  <body>
-    <header>
-      <h1>Contacto</h1>
-      <nav>
-        <a href="../index.html">Inicio</a>
-        <a href="productos.html">Productos</a>
-        <a href="pedidos.html">Pedidos</a>
-        <a href="contacto.html">Contacto</a>
-        <a href="admin_productos.html">Admin Productos</a>
-        <a href="admin_pedidos.html">Admin Pedidos</a>
-      </nav>
-    </header>
-    <main>
-      <h2>Formulario de contacto</h2>
-      <p>Aquí irá el formulario de contacto.</p>
-    </main>
-    <script src="../js/main.js"></script>
-  </body>
+<!DOCTYPE html>
+<html lang="ca">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Contacte - PONPAPERConnect</title>
+  <link rel="stylesheet" href="../css/style.css">
+  <style>
+    .main-padding {
+      padding: 2rem;
+    }
+  </style>
+</head>
+<body>
+  <header class="site-header">
+    <div class="logo">CIPEPONPAPER<span>Connect</span></div>
+    <nav class="site-nav">
+      <ul>
+        <li><a href="../index.html" data-i18n="nav.home">Inici</a></li>
+        <li><a href="productos.html" data-i18n="nav.products">Productes</a></li>
+        <li><a href="pressupost.html" data-i18n="nav.budget">Pressupost</a></li>
+        <li><a href="contacto.html" class="active" data-i18n="nav.contact">Contacte</a></li>
+        <li><a href="login.html" data-i18n="nav.login">Accedeix / Registra't</a></li>
+      </ul>
+    </nav>
+    <div class="menu-toggle" id="menuToggle">☰</div>
+  </header>
+
+  <main class="main-padding">
+    <h2 data-i18n="contact.title">Contacta amb nosaltres</h2>
+    <p><span data-i18n="contact.phoneLabel">Tel:</span> 600 000 000<br><span data-i18n="contact.emailLabel">Correu:</span> info@ponpaper.es</p>
+    <form id="contactForm">
+      <label><span data-i18n="contact.form.name">Nom</span><br><input type="text" name="name" required></label><br><br>
+      <label><span data-i18n="contact.form.email">Correu electrònic</span><br><input type="email" name="email" required></label><br><br>
+      <label><span data-i18n="contact.form.message">Missatge</span><br><textarea name="message" rows="5" required></textarea></label><br><br>
+      <button type="submit" class="btn-cta" data-i18n="contact.send">Enviar</button>
+    </form>
+  </main>
+
+  <script src="../js/i18n.js"></script>
+  <script>
+    document.getElementById('contactForm').addEventListener('submit', (e) => {
+      e.preventDefault();
+      alert((window.i18n && window.i18n.t('contact.sentSimulated')) || 'Missatge enviat (simulat).');
+    });
+  </script>
+  <script src="../js/main.js"></script>
+
+<script>
+  document.addEventListener('DOMContentLoaded', function() {
+    const nav = document.querySelector('.site-nav ul');
+    const username = localStorage.getItem('username');
+    if (nav && username) {
+      const loginLink = nav.querySelector('a[href$="login.html"]');
+      if (loginLink && loginLink.parentElement) loginLink.parentElement.remove();
+      const liUser = document.createElement('li');
+      liUser.innerHTML = `<span>Hola, ${username}</span>`;
+      const liLogout = document.createElement('li');
+      const a = document.createElement('a');
+      a.href = '#';
+      a.textContent = 'Surt';
+      a.onclick = function(e) {
+        e.preventDefault();
+        localStorage.removeItem('username');
+        localStorage.removeItem('userId');
+        localStorage.removeItem('usuariConnectat');
+        window.location.reload();
+      };
+      liLogout.appendChild(a);
+      nav.appendChild(liUser);
+      nav.appendChild(liLogout);
+    }
+  });
+</script>
+
+<script>
+  (function(){
+    async function detectApiBase() {
+      const override = new URLSearchParams(location.search).get('apiBase');
+      if (override) {
+        try { localStorage.setItem('apiBase', override); } catch(_){ }
+        return override.replace(/\/+$/, '');
+      }
+      const saved = window.localStorage.getItem('apiBase');
+      if (saved) {
+        return saved.replace(/\/+$/, '');
+      }
+      const hostBase = `${location.protocol}//${location.host}`;
+      const candidates = [
+        `${hostBase}/ponpaper-backend-1.0-SNAPSHOT`,
+        `${hostBase}/ponpaper-backend`,
+        'http://localhost:8080/ponpaper-backend-1.0-SNAPSHOT',
+        'http://localhost:8080/ponpaper-backend',
+        hostBase
+      ];
+      for (const base of candidates) {
+        try {
+          const res = await fetch(`${base.replace(/\/+$/, '')}/api/products`, { method: 'GET', credentials: 'include' });
+          if (res.ok) {
+            return base.replace(/\/+$/, '');
+          }
+        } catch (e) {}
+      }
+      return `${hostBase}`;
+    }
+    async function start() {
+      const basePath = await detectApiBase();
+      const nav = document.querySelector('.site-nav ul');
+      if (!nav) return;
+      try {
+        const res = await fetch(`${basePath}/api/user`, { credentials: 'include' });
+        if (res.ok) {
+          const data = await res.json();
+          const loginLink = nav.querySelector('a[href="login.html"]') || nav.querySelector('a[href="../pages/login.html"]');
+          const loginItem = loginLink ? loginLink.parentElement : null;
+          if (data.authenticated && data.user) {
+            if (loginItem) loginItem.remove();
+            const liUser = document.createElement('li');
+            liUser.innerHTML = `<span>Hola, ${data.user.name}</span>`;
+            const liLogout = document.createElement('li');
+            const a = document.createElement('a');
+            a.href = '#';
+            a.textContent = 'Surt';
+            a.onclick = async (e) => {
+              e.preventDefault();
+              localStorage.removeItem('usuariConnectat');
+              localStorage.removeItem('username');
+              localStorage.removeItem('userId');
+              location.reload();
+            };
+            liLogout.appendChild(a);
+            nav.appendChild(liUser);
+            nav.appendChild(liLogout);
+          } else {
+            const savedUsername = localStorage.getItem('username');
+            const savedUserId = localStorage.getItem('userId');
+            const urlParams = new URLSearchParams(location.search);
+            const justLoggedIn = urlParams.get('logged') === 'true';
+            if (savedUsername && (savedUserId || justLoggedIn)) {
+              if (loginItem) loginItem.remove();
+              const liUser = document.createElement('li');
+              liUser.innerHTML = `<span>Hola, ${savedUsername}</span>`;
+              const liLogout = document.createElement('li');
+              const a = document.createElement('a');
+              a.href = '#';
+              a.textContent = 'Surt';
+              a.onclick = async (e) => {
+                e.preventDefault();
+                localStorage.removeItem('usuariConnectat');
+                localStorage.removeItem('username');
+                localStorage.removeItem('userId');
+                location.reload();
+              };
+              liLogout.appendChild(a);
+              nav.appendChild(liUser);
+              nav.appendChild(liLogout);
+            }
+          }
+        }
+      } catch (e) {}
+    }
+    document.addEventListener('DOMContentLoaded', start);
+  })();
+</script>
+</body>
 </html>

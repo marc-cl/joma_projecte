@@ -8,6 +8,6 @@ public class CarritoServlet extends HttpServlet {
     @Override
     protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
         resp.setContentType("text/html;charset=UTF-8");
-        resp.getWriter().write("<h1>Gestión de carrito (base)</h1>");
+        resp.getWriter().write("<h1>Gestio del carret (base)</h1>");
     }
 }

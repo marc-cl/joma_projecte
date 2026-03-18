@@ -1,0 +1,55 @@
+﻿<!DOCTYPE html>
+<html lang="ca">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Area privada | Botiga Online</title>
+    <link rel="stylesheet" href="../css/style.css">
+  </head>
+  <body>
+    <header class="site-header">
+      <div class="logo">Botiga <span>Online</span></div>
+      <nav class="site-nav">
+        <ul>
+          <li><a href="../index.html">Inici</a></li>
+          <li><a href="productos.html">CatÃ leg</a></li>
+          <li><a href="pedidos.html">Comandes</a></li>
+          <li><a href="contacto.html">Contacte</a></li>
+        </ul>
+      </nav>
+      <div class="user-area">
+        <a href="login.html" id="user-name">Login</a>
+        <button type="button" id="logout-btn-header" style="display: none">
+          Tancar sessiÃ³
+        </button>
+      </div>
+    </header>
+
+    <main class="auth-page">
+      <h1>Ã€rea privada</h1>
+      <p id="welcome-text"></p>
+      <div id="msg"></div>
+    </main>
+
+    <footer class="site-footer">
+      <p>&copy; 2026 Botiga Online | Desenvolupat per l'equip DAW</p>
+    </footer>
+
+    <script>
+      // Proteccio basica: si no hi ha usuari, redirigeix al login
+      const username = localStorage.getItem("username");
+      const welcomeText = document.getElementById("welcome-text");
+
+      if (!username) {
+        window.location.href = "login.html";
+      } else {
+        welcomeText.textContent = `Benvingut/da, ${username}!`;
+      }
+    </script>
+    <script src="../js/main.js"></script>
+  </body>
+</html>
+
+
+
+
