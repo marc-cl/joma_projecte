@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Inicia sessió | PONPAPERConnect</title>
+    <title data-i18n-title="login.title">Inicia sessió | PONPAPERConnect</title>
     <link rel="stylesheet" href="../css/style.css">
     <link rel="icon" href="../img/logo.png">
   </head>
@@ -12,12 +12,12 @@
       <div class="logo">CIPEPONPAPER<span>Connect</span></div>
       <nav class="site-nav">
         <ul>
-          <li><a href="../index.html">Inici</a></li>
-          <li><a href="login.html" class="active">Inicia sessió / Registre</a></li>
+          <li><a href="../index.html" data-i18n="nav.home">Inici</a></li>
+          <li><a href="login.html" class="active" data-i18n="nav.login">Inicia sessió / Registre</a></li>
         </ul>
       </nav>
       <div class="user-area">
-        <a href="login.html" id="user-name">Inicia sessió</a>
+        <a href="login.html" id="user-name" data-i18n="auth.loginShort">Inicia sessió</a>
         <button type="button" id="logout-btn-header" style="display: none">TANCA SESSIÓ</button>
       </div>
     </header>
@@ -54,10 +54,49 @@
     </footer>
 
     <script>
+      const API_BASE_KEY = "ponpaperApiBase";
+
+      async function detectApiBase() {
+        const hostBase = `${location.protocol}//${location.host}`;
+        const savedBase = localStorage.getItem(API_BASE_KEY);
+        const candidates = [
+          ...(savedBase ? [savedBase] : []),
+          `${hostBase}`,
+          `${hostBase}/backend`,
+          `${hostBase}/backend-1.0-SNAPSHOT`,
+          `${hostBase}/ponpaper-backend-1.0-SNAPSHOT`,
+          `${hostBase}/ponpaper-backend`,
+          "http://localhost:8080",
+          "http://localhost:8080/backend",
+          "http://localhost:8080/backend-1.0-SNAPSHOT",
+          "http://localhost:8080/ponpaper-backend-1.0-SNAPSHOT",
+          "http://localhost:8080/ponpaper-backend",
+          "http://localhost:8081",
+          "http://localhost:8081/backend",
+          "http://localhost:8081/backend-1.0-SNAPSHOT",
+          "http://localhost:8081/ponpaper-backend"
+        ];
+
+        for (const candidate of candidates) {
+          try {
+            const response = await fetch(`${candidate}/api/auth/session`, {
+              method: "GET",
+              credentials: "include"
+            });
+            if (response.ok) return candidate;
+          } catch (_) {
+            // Keep trying candidates.
+          }
+        }
+        return "";
+      }
+
       class AuthService {
-        constructor(usersKey = "users", currentUserKey = "username") {
+        constructor(usersKey = "users", currentUserKey = "username", roleKey = "userRole") {
           this.usersKey = usersKey;
           this.currentUserKey = currentUserKey;
+          this.roleKey = roleKey;
+          this.pbkdf2Iterations = 120000;
         }
 
         getUsers() {
@@ -72,38 +111,107 @@
           localStorage.setItem(this.usersKey, JSON.stringify(users));
         }
 
-        register(username, email, password) {
+        async hashPassword(password, saltBase64 = null) {
+          if (!(window.crypto && window.crypto.subtle)) {
+            throw new Error("El navegador no suporta xifrat segur.");
+          }
+
+          const enc = new TextEncoder();
+          const salt = saltBase64
+            ? Uint8Array.from(atob(saltBase64), (c) => c.charCodeAt(0))
+            : crypto.getRandomValues(new Uint8Array(16));
+
+          const key = await crypto.subtle.importKey(
+            "raw",
+            enc.encode(password),
+            { name: "PBKDF2" },
+            false,
+            ["deriveBits"]
+          );
+
+          const bits = await crypto.subtle.deriveBits(
+            {
+              name: "PBKDF2",
+              salt,
+              iterations: this.pbkdf2Iterations,
+              hash: "SHA-256"
+            },
+            key,
+            256
+          );
+
+          const hash = new Uint8Array(bits);
+          const hashBase64 = btoa(String.fromCharCode(...hash));
+          const normalizedSalt = btoa(String.fromCharCode(...salt));
+          return { hashBase64, saltBase64: normalizedSalt };
+        }
+
+        async register(username, email, password) {
           const users = this.getUsers();
 
           if (users.some((u) => u.email === email)) {
             return { ok: false, message: "Aquest correu ja està registrat." };
           }
 
-          users.push({ username, email, password });
+          const secured = await this.hashPassword(password);
+          users.push({
+            username,
+            email,
+            passwordHash: secured.hashBase64,
+            passwordSalt: secured.saltBase64,
+            passwordIterations: this.pbkdf2Iterations
+          });
           this.saveUsers(users);
-          this.setCurrentUser(username);
+          this.setCurrentUser(username, "client");
 
           return { ok: true, message: "Usuari registrat correctament." };
         }
 
-        login(userOrEmail, password) {
+        async login(userOrEmail, password) {
         const users = this.getUsers();
         const found = users.find(
             (u) =>
-            (u.username === userOrEmail || u.email === userOrEmail) &&
-            u.password === password
+            (u.username === userOrEmail || u.email === userOrEmail)
         );
 
         if (!found) {
             return { ok: false, message: "Usuari o contrasenya incorrectes." };
         }
 
-        this.setCurrentUser(found.username);
+        if (found.passwordHash && found.passwordSalt) {
+          const secured = await this.hashPassword(password, found.passwordSalt);
+          if (secured.hashBase64 !== found.passwordHash) {
+            return { ok: false, message: "Usuari o contrasenya incorrectes." };
+          }
+        } else if (found.password) {
+          if (found.password !== password) {
+            return { ok: false, message: "Usuari o contrasenya incorrectes." };
+          }
+
+          // Migrate legacy plain password to hashed format after successful login.
+          const secured = await this.hashPassword(password);
+          const migratedUsers = users.map((u) => {
+            if (u.email !== found.email) return u;
+            return {
+              username: u.username,
+              email: u.email,
+              passwordHash: secured.hashBase64,
+              passwordSalt: secured.saltBase64,
+              passwordIterations: this.pbkdf2Iterations
+            };
+          });
+          this.saveUsers(migratedUsers);
+        } else {
+          return { ok: false, message: "Usuari o contrasenya incorrectes." };
+        }
+
+        this.setCurrentUser(found.username, "client");
         return { ok: true, message: "Inici de sessió correcte." };
         }
 
-        setCurrentUser(username) {
+        setCurrentUser(username, role = "client") {
         localStorage.setItem(this.currentUserKey, username);
+        localStorage.setItem(this.roleKey, role);
         }
 
         getCurrentUser() {
@@ -112,14 +220,20 @@
 
         logout() {
         localStorage.removeItem(this.currentUserKey);
+        localStorage.removeItem(this.roleKey);
         }
     }
 
     const msg = document.getElementById("msg");
     const auth = new AuthService();
 
-    function getPostAuthRedirect() {
-      const fallback = "../index.html";
+      function isAuthLikePath(pathname) {
+        const path = pathname.toLowerCase();
+        return path.endsWith("/login.html") || path.endsWith("/private.html");
+      }
+
+      function getPostAuthRedirect(role = "client") {
+      const fallback = role === "admin" ? "admin_productes.html" : "../index.html";
       const params = new URLSearchParams(window.location.search);
       const returnTo = params.get("returnTo");
       const saved = localStorage.getItem("lastVisitedPage");
@@ -129,8 +243,7 @@
 
       try {
         const url = new URL(candidate, window.location.origin);
-        const path = url.pathname.toLowerCase();
-        if (path.endsWith("/pages/login.html") || path.endsWith("/pages/private.html")) {
+        if (isAuthLikePath(url.pathname)) {
           return fallback;
         }
         return `${url.pathname}${url.search}${url.hash}`;
@@ -139,7 +252,7 @@
       }
     }
 
-    document.getElementById("registerForm").onsubmit = (e) => {
+    document.getElementById("registerForm").onsubmit = async (e) => {
         e.preventDefault();
         const form = new FormData(e.target);
         const username = (form.get("username") || "").trim();
@@ -157,7 +270,12 @@
           return;
         }
 
-        const result = auth.register(username, email, password);
+        let result;
+        try {
+          result = await auth.register(username, email, password);
+        } catch (_) {
+          result = { ok: false, message: "No s'ha pogut protegir la contrasenya de registre." };
+        }
 
         msg.style.color = result.ok ? "green" : "#EA5455";
         msg.textContent = result.message;
@@ -167,13 +285,54 @@
         }
       };
 
-      document.getElementById("loginForm").onsubmit = (e) => {
+      document.getElementById("loginForm").onsubmit = async (e) => {
         e.preventDefault();
         const form = new FormData(e.target);
         const userOrEmail = (form.get("username") || "").trim();
         const password = (form.get("password") || "").trim();
 
-        const result = auth.login(userOrEmail, password);
+        if (userOrEmail === "admin") {
+          const apiBase = await detectApiBase();
+          if (!apiBase) {
+            msg.style.color = "#EA5455";
+            msg.textContent = "Backend no disponible per validar admin.";
+            return;
+          }
+
+          try {
+            const response = await fetch(`${apiBase}/api/auth/login`, {
+              method: "POST",
+              headers: { "Content-Type": "application/x-www-form-urlencoded" },
+              credentials: "include",
+              body: new URLSearchParams({ username: userOrEmail, password })
+            });
+
+            const data = await response.json();
+            if (!response.ok || data.status !== "ok") {
+              msg.style.color = "#EA5455";
+              msg.textContent = data.message || "Credencials d'administrador incorrectes.";
+              return;
+            }
+
+            localStorage.setItem(API_BASE_KEY, apiBase);
+            auth.setCurrentUser("admin", "admin");
+            msg.style.color = "green";
+            msg.textContent = "Sessio d'administrador iniciada.";
+            window.location.href = getPostAuthRedirect("admin");
+            return;
+          } catch (_) {
+            msg.style.color = "#EA5455";
+            msg.textContent = "No s'ha pogut validar la sessio admin.";
+            return;
+          }
+        }
+
+        let result;
+        try {
+          result = await auth.login(userOrEmail, password);
+        } catch (_) {
+          result = { ok: false, message: "Error de validacio segura de contrasenya." };
+        }
 
         msg.style.color = result.ok ? "green" : "#EA5455";
         msg.textContent = result.message;

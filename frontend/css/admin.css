@@ -1,0 +1,149 @@
+.admin-page {
+  max-width: 1100px;
+  margin: 2rem auto;
+  padding: 0 1rem 2.5rem;
+}
+
+.admin-hero {
+  background: linear-gradient(135deg, #20354d, #345b85);
+  color: #fff;
+  border-radius: 12px;
+  padding: 1rem 1.2rem;
+}
+
+.admin-hero h1 {
+  margin: 0;
+}
+
+.admin-hero p {
+  margin-top: 0.35rem;
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.admin-status {
+  margin-top: 1rem;
+  padding: 0.75rem 0.9rem;
+  border-radius: 10px;
+}
+
+.admin-status.loading {
+  background: #eaf2ff;
+  color: #294f82;
+}
+
+.admin-status.success {
+  background: #ebfff2;
+  color: #1b6b3f;
+}
+
+.admin-status.error {
+  background: #ffeceb;
+  color: #8d2424;
+}
+
+.admin-status.empty {
+  background: #f3f4f6;
+  color: #4a5568;
+}
+
+.admin-tabs {
+  margin-top: 1rem;
+  display: flex;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+}
+
+.admin-tab {
+  border: 1px solid #cbd5e1;
+  border-radius: 999px;
+  background: #fff;
+  color: #1e293b;
+  padding: 0.5rem 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.admin-tab.active {
+  background: #ea5455;
+  border-color: #ea5455;
+  color: #fff;
+}
+
+.admin-section {
+  margin-top: 1rem;
+  display: none;
+}
+
+.admin-section.active {
+  display: block;
+}
+
+.admin-section h2 {
+  margin: 0;
+  color: #1e293b;
+}
+
+.admin-section-help {
+  margin-top: 0.35rem;
+  color: #475569;
+}
+
+.admin-table-wrap {
+  margin-top: 1rem;
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  overflow: auto;
+}
+
+.admin-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.admin-table th,
+.admin-table td {
+  text-align: left;
+  padding: 0.65rem;
+  border-bottom: 1px solid #f1f2f4;
+  font-size: 0.92rem;
+}
+
+.admin-table th {
+  background: #f8fafc;
+  color: #475569;
+  font-weight: 700;
+}
+
+.admin-table input,
+.admin-table select {
+  width: 100%;
+  min-width: 90px;
+  padding: 0.45rem 0.55rem;
+  border: 1px solid #d1d5db;
+  border-radius: 7px;
+  font: inherit;
+}
+
+.admin-action-btn {
+  border: none;
+  border-radius: 8px;
+  padding: 0.45rem 0.7rem;
+  background: #ea5455;
+  color: #fff;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.admin-action-btn:disabled {
+  background: #9ca3af;
+  cursor: not-allowed;
+}
+
+@media (max-width: 860px) {
+  .admin-table th,
+  .admin-table td {
+    font-size: 0.84rem;
+    padding: 0.5rem;
+  }
+}

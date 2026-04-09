@@ -37,7 +37,7 @@
   </main>
 
   <!-- Modal del carret -->
-  <div id="cartModal" class="cart-modal" aria-hidden="true">
+  <div id="cartModal" class="cart-modal">
     <div class="cart-content">
       <div class="cart-header">
         <h2 data-i18n="cart.title">Carret de compra</h2>
@@ -55,27 +55,68 @@
     </div>
   </div>
 
-  <div id="checkoutModal" class="cart-modal" style="display:none;" aria-hidden="true">
+  <div id="checkoutModal" class="cart-modal" style="display:none;">
     <div class="cart-content">
       <div class="cart-header">
-        <h2>Checkout (base)</h2>
+        <h2>Finalitzar compra</h2>
         <button type="button" class="close-cart-btn" id="closeCheckoutBtn">&times;</button>
       </div>
-      <div class="checkout-placeholder">
-        <p>Aquesta pantalla queda preparada com a base per al checkout final.</p>
-        <p>Proper pas: formulari complet, validacions i integracio amb backend.</p>
-        <div class="cart-total">
-          Total actual: €<span id="checkoutTotalAmount">0.00</span>
+      <div id="checkoutStatus" class="status-box" style="display:none;"></div>
+      <form id="checkoutForm" class="checkout-form">
+        <div class="checkout-grid">
+          <label>
+            Nom i cognoms*
+            <input type="text" name="customer_name" required maxlength="120" autocomplete="name">
+          </label>
+          <label>
+            Email*
+            <input type="email" name="email" required maxlength="120" autocomplete="email">
+          </label>
+          <label>
+            Telefon*
+            <input type="tel" name="phone" required maxlength="30" autocomplete="tel">
+          </label>
+          <label>
+            Adreca*
+            <input type="text" name="address" required maxlength="160" autocomplete="address-line1">
+          </label>
+          <label>
+            Ciutat*
+            <input type="text" name="city" required maxlength="100" autocomplete="address-level2">
+          </label>
+          <label>
+            Codi postal*
+            <input type="text" name="postal_code" required maxlength="12" autocomplete="postal-code">
+          </label>
+          <label>
+            Metode de pagament
+            <select name="payment_method">
+              <option value="targeta">Targeta</option>
+              <option value="bizum">Bizum</option>
+              <option value="transferencia">Transferencia</option>
+            </select>
+          </label>
+          <label class="checkout-full-width">
+            Notes de lliurament
+            <textarea name="notes" rows="3" maxlength="300" placeholder="Ex.: Trucar abans d'entregar"></textarea>
+          </label>
         </div>
+
+        <div class="cart-total" id="checkoutBreakdown">
+          <div><span data-i18n="checkout.subtotal">Subtotal</span>: €<span id="checkoutSubtotalAmount">0.00</span></div>
+          <div><span data-i18n="checkout.vat">IVA 21%</span>: €<span id="checkoutVatAmount">0.00</span></div>
+          <div><strong data-i18n="checkout.total">Total final</strong>: €<span id="checkoutTotalAmount">0.00</span></div>
+        </div>
+
         <div class="cart-actions">
           <button type="button" class="btn btn-secondary" id="closeCheckoutActionBtn">Tanca</button>
+          <button type="submit" class="btn btn-primary" id="placeOrderBtn">Confirmar comanda</button>
         </div>
-      </div>
+      </form>
     </div>
   </div>
 
 
-  <script src="../js/i18n.js"></script>
   <script src="../js/main.js"></script>
   <script type="module" src="../js/productes-page.js"></script>
 </body>

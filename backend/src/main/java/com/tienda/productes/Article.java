@@ -1,6 +1,10 @@
 package com.tienda.productes;
 
-public class Article {
+import java.io.Serializable;
+
+public class Article implements Serializable {
+    private static final long serialVersionUID = 1L;
+
     private final int id;
     private final String name;
     private final String description;

@@ -12,6 +12,10 @@ const state = {
   useMockCart: false
 };
 
+const API_BASE_KEY = "ponpaperApiBase";
+const LOCAL_CART_KEY = "ponpaper_cart_local";
+const LOCAL_ORDERS_KEY_PREFIX = "ponpaper_orders_local";
+
 const $ = (id) => document.getElementById(id);
 
 function getStockClass(stock) {
@@ -47,14 +51,25 @@ function toast(message, kind = "success") {
 }
 
 async function detectApiBase() {
+  // Cerca la base del backend disponible.
   const hostBase = `${location.protocol}//${location.host}`;
+  const savedBase = localStorage.getItem(API_BASE_KEY);
   const candidates = [
+    ...(savedBase ? [savedBase] : []),
+    `${hostBase}`,
+    `${hostBase}/backend`,
     `${hostBase}/backend-1.0-SNAPSHOT`,
     `${hostBase}/ponpaper-backend-1.0-SNAPSHOT`,
     `${hostBase}/ponpaper-backend`,
+    "http://localhost:8080",
+    "http://localhost:8080/backend",
     "http://localhost:8080/backend-1.0-SNAPSHOT",
     "http://localhost:8080/ponpaper-backend-1.0-SNAPSHOT",
-    "http://localhost:8080/ponpaper-backend"
+    "http://localhost:8080/ponpaper-backend",
+    "http://localhost:8081",
+    "http://localhost:8081/backend",
+    "http://localhost:8081/backend-1.0-SNAPSHOT",
+    "http://localhost:8081/ponpaper-backend"
   ];
 
   for (const candidate of candidates) {
@@ -86,16 +101,125 @@ async function fetchCart() {
   if (state.useMockCart || !state.apiBase) return state.cartItems;
 
   const response = await fetch(`${state.apiBase}/api/cart`, { credentials: "include" });
+  if (!response.ok) throw new Error("Resposta no valida del carret");
   const data = await response.json();
   if (data.status !== "ok") return [];
-  return (data.items || []).map((it) => ({
+  return normalizeCartItems(data.items);
+}
+
+function normalizeCartItems(items) {
+  return (items || []).map((it) => ({
     ...it,
-    item_total: Number(it.item_total || (it.price * it.quantity))
+    price: Number(it.price),
+    quantity: Number(it.quantity),
+    item_total: Number(it.item_total || (Number(it.price) * Number(it.quantity)))
   }));
+}
+
+function setCartItems(items) {
+  // Normalitza i unifica linies per producte.
+  const byProductId = new Map();
+
+  for (const item of normalizeCartItems(items)) {
+    const key = Number(item.product_id);
+    const existing = byProductId.get(key);
+    if (existing) {
+      existing.quantity += Number(item.quantity);
+      existing.item_total = Number(existing.price) * Number(existing.quantity);
+      continue;
+    }
+
+    byProductId.set(key, { ...item });
+  }
+
+  state.cartItems = Array.from(byProductId.values());
+}
+
+function mergeCartItems(baseItems, incomingItems) {
+  const merged = new Map();
+
+  for (const item of normalizeCartItems(baseItems)) {
+    merged.set(Number(item.product_id), { ...item });
+  }
+
+  for (const item of normalizeCartItems(incomingItems)) {
+    const key = Number(item.product_id);
+    const existing = merged.get(key);
+    if (!existing) {
+      merged.set(key, { ...item });
+      continue;
+    }
+
+    existing.quantity = Number(item.quantity);
+    existing.price = Number(item.price);
+    existing.item_total = Number(item.item_total || (existing.price * existing.quantity));
+  }
+
+  return Array.from(merged.values());
+}
+
+function shouldSwitchToLocalAfterAdd(previousItems, responseItems, addedProductId) {
+  // Detecta quan la resposta API perd linies del carret.
+  if (!previousItems.length) return false;
+
+  const prevIds = new Set(previousItems.map((it) => Number(it.product_id)));
+  const nextIds = new Set(normalizeCartItems(responseItems).map((it) => Number(it.product_id)));
+
+  if (!nextIds.has(Number(addedProductId))) return true;
+  for (const prevId of prevIds) {
+    if (prevId !== Number(addedProductId) && !nextIds.has(prevId)) {
+      return true;
+    }
+  }
+
+  return false;
 }
 
 function toLocalImage(path) {
   return path.startsWith("img/") ? `../${path}` : path;
+}
+
+function readJsonFromStorage(key, fallback) {
+  try {
+    const raw = localStorage.getItem(key);
+    if (!raw) return fallback;
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : fallback;
+  } catch (_) {
+    return fallback;
+  }
+}
+
+function loadLocalCart() {
+  return readJsonFromStorage(LOCAL_CART_KEY, []).map((item) => ({
+    ...item,
+    price: Number(item.price),
+    quantity: Number(item.quantity),
+    item_total: Number(item.item_total || Number(item.price) * Number(item.quantity || 0))
+  }));
+}
+
+function saveLocalCart() {
+  localStorage.setItem(LOCAL_CART_KEY, JSON.stringify(state.cartItems));
+}
+
+function currentUsername() {
+  return String(localStorage.getItem("username") || "").trim();
+}
+
+function localOrdersKeyForUser(username) {
+  return `${LOCAL_ORDERS_KEY_PREFIX}_${username}`;
+}
+
+function loadLocalOrders(username) {
+  return readJsonFromStorage(localOrdersKeyForUser(username), []);
+}
+
+function saveLocalOrder(order) {
+  const username = order.buyer_username || currentUsername();
+  const existing = loadLocalOrders(username);
+  existing.unshift(order);
+  localStorage.setItem(localOrdersKeyForUser(username), JSON.stringify(existing));
 }
 
 function productCard(product) {
@@ -137,6 +261,13 @@ function cartTotals() {
   const total = state.cartItems.reduce((sum, item) => sum + Number(item.item_total), 0);
   const items = state.cartItems.reduce((sum, item) => sum + Number(item.quantity), 0);
   return { total, items };
+}
+
+function taxTotals() {
+  const subtotal = cartTotals().total;
+  const vat = subtotal * 0.21;
+  const total = subtotal + vat;
+  return { subtotal, vat, total };
 }
 
 function syncCartBadge() {
@@ -182,9 +313,11 @@ function renderCart() {
     </div>
   `).join("");
 
-  const { total } = cartTotals();
-  $("totalAmount").textContent = total.toFixed(2);
-  $("checkoutTotalAmount").textContent = total.toFixed(2);
+  const { subtotal, vat, total: finalTotal } = taxTotals();
+  $("totalAmount").textContent = finalTotal.toFixed(2);
+  $("subtotalAmount").textContent = subtotal.toFixed(2);
+  $("vatAmount").textContent = vat.toFixed(2);
+  $("checkoutTotalAmount").textContent = finalTotal.toFixed(2);
   totalBox.style.display = "block";
   actions.style.display = "flex";
 }
@@ -203,6 +336,35 @@ function productById(id) {
   return state.products.find((p) => Number(p.id) === Number(id));
 }
 
+function addToCartLocal(product, quantity) {
+  // Fallback local quan el backend falla.
+  const existing = state.cartItems.find((i) => Number(i.product_id) === Number(product.id));
+  if (existing) {
+    existing.quantity = Math.min(existing.quantity + quantity, product.stock);
+    existing.item_total = existing.quantity * existing.price;
+  } else {
+    state.cartItems.push({
+      id: Date.now(),
+      product_id: product.id,
+      name: product.name,
+      price: Number(product.price),
+      quantity,
+      item_total: Number(product.price) * quantity
+    });
+  }
+
+  syncCartBadge();
+  renderCart();
+  saveLocalCart();
+}
+
+function switchToLocalCartMode() {
+  state.useMockCart = true;
+  if (!state.cartItems.length) {
+    state.cartItems = loadLocalCart();
+  }
+}
+
 async function addToCart(productId, quantity) {
   const product = productById(productId);
   if (!product) return;
@@ -213,39 +375,44 @@ async function addToCart(productId, quantity) {
   }
 
   if (!state.apiBase) {
-    state.useMockCart = true;
-    const existing = state.cartItems.find((i) => Number(i.product_id) === Number(productId));
-    if (existing) {
-      existing.quantity = Math.min(existing.quantity + quantity, product.stock);
-      existing.item_total = existing.quantity * existing.price;
-    } else {
-      state.cartItems.push({
-        id: Date.now(),
-        product_id: product.id,
-        name: product.name,
-        price: Number(product.price),
-        quantity,
-        item_total: Number(product.price) * quantity
-      });
-    }
-    syncCartBadge();
-    renderCart();
+    switchToLocalCartMode();
+    addToCartLocal(product, quantity);
     toast("Producte afegit al carret.");
     return;
   }
 
-  const payload = new URLSearchParams({ product_id: productId, quantity: String(quantity) });
-  const response = await fetch(`${state.apiBase}/api/cart`, {
-    method: "POST",
-    headers: { "Content-Type": "application/x-www-form-urlencoded" },
-    credentials: "include",
-    body: payload
-  });
-  const data = await response.json();
-  if (data.status !== "ok") throw new Error(data.message || "No s'ha pogut afegir al carret");
-  state.cartItems = await fetchCart();
-  syncCartBadge();
-  renderCart();
+  try {
+    const previousItems = [...state.cartItems];
+    const payload = new URLSearchParams({ product_id: productId, quantity: String(quantity) });
+    const response = await fetch(`${state.apiBase}/api/cart`, {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      credentials: "include",
+      body: payload
+    });
+
+    if (!response.ok) {
+      throw new Error("No s'ha pogut afegir al carret");
+    }
+
+    const data = await response.json();
+    if (data.status !== "ok") throw new Error(data.message || "No s'ha pogut afegir al carret");
+
+    if (shouldSwitchToLocalAfterAdd(previousItems, data.items, productId)) {
+      switchToLocalCartMode();
+      setCartItems(mergeCartItems(previousItems, data.items));
+      saveLocalCart();
+    } else {
+      setCartItems(data.items);
+    }
+
+    syncCartBadge();
+    renderCart();
+  } catch (_) {
+    switchToLocalCartMode();
+    addToCartLocal(product, quantity);
+    toast("Carret API no disponible. Producte afegit en mode local.", "error");
+  }
 }
 
 async function updateCart(productId, qty) {
@@ -259,6 +426,7 @@ async function updateCart(productId, qty) {
     item.item_total = item.price * item.quantity;
     syncCartBadge();
     renderCart();
+    saveLocalCart();
     return;
   }
 
@@ -269,9 +437,10 @@ async function updateCart(productId, qty) {
     credentials: "include",
     body: payload
   });
+  if (!response.ok) throw new Error("No s'ha pogut actualitzar el carret");
   const data = await response.json();
   if (data.status !== "ok") throw new Error(data.message || "No s'ha pogut actualitzar el carret");
-  state.cartItems = await fetchCart();
+  setCartItems(data.items);
   syncCartBadge();
   renderCart();
 }
@@ -281,6 +450,7 @@ async function removeFromCart(cartId) {
     state.cartItems = state.cartItems.filter((it) => Number(it.id) !== Number(cartId));
     syncCartBadge();
     renderCart();
+    saveLocalCart();
     return;
   }
 
@@ -288,11 +458,343 @@ async function removeFromCart(cartId) {
     method: "DELETE",
     credentials: "include"
   });
+  if (!response.ok) throw new Error("No s'ha pogut eliminar del carret");
   const data = await response.json();
   if (data.status !== "ok") throw new Error(data.message || "No s'ha pogut eliminar del carret");
-  state.cartItems = await fetchCart();
+  setCartItems(data.items);
   syncCartBadge();
   renderCart();
+}
+
+async function clearCartAfterCheckout() {
+  if (!state.apiBase || state.useMockCart) {
+    state.cartItems = [];
+    saveLocalCart();
+    syncCartBadge();
+    renderCart();
+    return;
+  }
+
+  const response = await fetch(`${state.apiBase}/api/cart?clear=true`, {
+    method: "DELETE",
+    credentials: "include"
+  });
+  if (!response.ok) throw new Error("No s'ha pogut buidar el carret");
+  const data = await response.json();
+  if (data.status !== "ok") throw new Error(data.message || "No s'ha pogut buidar el carret");
+  setCartItems(data.items);
+  syncCartBadge();
+  renderCart();
+}
+
+async function syncLocalCartToBackend() {
+  if (!state.apiBase || !state.cartItems.length) {
+    return;
+  }
+
+  // Sincronitza carret local abans de crear comanda al backend.
+  const clearResponse = await fetch(`${state.apiBase}/api/cart?clear=true`, {
+    method: "DELETE",
+    credentials: "include"
+  });
+  if (!clearResponse.ok) {
+    throw new Error("No s'ha pogut preparar el carret al backend");
+  }
+
+  const clearData = await clearResponse.json();
+  if (clearData.status !== "ok") {
+    throw new Error(clearData.message || "No s'ha pogut preparar el carret al backend");
+  }
+
+  for (const item of state.cartItems) {
+    const payload = new URLSearchParams({
+      product_id: String(item.product_id),
+      quantity: String(item.quantity)
+    });
+
+    const addResponse = await fetch(`${state.apiBase}/api/cart`, {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      credentials: "include",
+      body: payload
+    });
+
+    if (!addResponse.ok) {
+      throw new Error("No s'ha pogut sincronitzar el carret amb el backend");
+    }
+
+    const addData = await addResponse.json();
+    if (addData.status !== "ok") {
+      throw new Error(addData.message || "No s'ha pogut sincronitzar el carret amb el backend");
+    }
+  }
+}
+
+function buildLocalOrder(formData) {
+  const { subtotal, vat, total } = taxTotals();
+  const { items } = cartTotals();
+  const orderId = Date.now();
+  const username = currentUsername();
+  return {
+    id: orderId,
+    created_at: new Date().toISOString(),
+    status: "pendent",
+    customer_name: formData.customer_name,
+    email: formData.email,
+    phone: formData.phone,
+    address: formData.address,
+    city: formData.city,
+    postal_code: formData.postal_code,
+    payment_method: formData.payment_method || "targeta",
+    payment_status: "pagat",
+    payment_reference: `LOCAL-PAY-${orderId}`,
+    notes: formData.notes || "",
+    buyer_username: username,
+    total_items: items,
+    subtotal_amount: Number(subtotal.toFixed(2)),
+    vat_amount: Number(vat.toFixed(2)),
+    total_amount: Number(total.toFixed(2)),
+    items: state.cartItems.map((item) => ({
+      product_id: Number(item.product_id),
+      name: item.name,
+      price: Number(item.price),
+      quantity: Number(item.quantity),
+      line_total: Number(item.item_total)
+    }))
+  };
+}
+
+async function processFakePayment(apiBase, orderId, paymentMethod) {
+  const payload = new URLSearchParams({
+    order_id: String(orderId),
+    payment_method: String(paymentMethod || "targeta"),
+    payment_action: "fake_payment",
+    admin_user: "admin",
+    admin_password: "1234"
+  });
+
+  // Try dedicated endpoint first.
+  let response = await fetch(`${apiBase}/api/payments/fake`, {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    credentials: "include",
+    body: payload
+  });
+
+  // Fallback to existing orders endpoint if mapping is not available.
+  if (response.status === 404 || response.status === 405) {
+    response = await fetch(`${apiBase}/api/comandes`, {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      credentials: "include",
+      body: payload
+    });
+  }
+
+  if (!response.ok) {
+    throw new Error("No s'ha pogut processar el pagament fictici");
+  }
+
+  const data = await response.json();
+  if (data.status !== "ok") {
+    throw new Error(data.message || "No s'ha pogut processar el pagament fictici");
+  }
+}
+
+async function loginAdminForStockUpdate(apiBase) {
+  const response = await fetch(`${apiBase}/api/auth/login`, {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    credentials: "include",
+    body: new URLSearchParams({ username: "admin", password: "1234" })
+  });
+  if (!response.ok) {
+    throw new Error("No s'ha pogut validar sessio admin per ajustar estoc");
+  }
+}
+
+async function applyStockFallbackAfterOrder(apiBase, orderedItems) {
+  if (!apiBase || !orderedItems.length) {
+    return;
+  }
+
+  await loginAdminForStockUpdate(apiBase);
+
+  const response = await fetch(`${apiBase}/api/productes`, {
+    method: "GET",
+    credentials: "include"
+  });
+  if (!response.ok) {
+    throw new Error("No s'ha pogut carregar productes per ajustar estoc");
+  }
+
+  const data = await response.json();
+  if (data.status !== "ok" || !Array.isArray(data.productes)) {
+    throw new Error("No s'ha pogut carregar productes per ajustar estoc");
+  }
+
+  const quantitiesByProduct = new Map();
+  for (const item of orderedItems) {
+    const productId = Number(item.product_id);
+    const quantity = Number(item.quantity || 0);
+    if (productId <= 0 || quantity <= 0) continue;
+    quantitiesByProduct.set(productId, (quantitiesByProduct.get(productId) || 0) + quantity);
+  }
+
+  const byId = new Map(data.productes.map((p) => [Number(p.id), p]));
+  for (const [productId, quantity] of quantitiesByProduct.entries()) {
+    const product = byId.get(productId);
+    if (!product) continue;
+
+    const currentStock = Number(product.stock || 0);
+    const newStock = Math.max(0, currentStock - quantity);
+    const updateResponse = await fetch(`${apiBase}/api/productes/stock`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      credentials: "include",
+      body: new URLSearchParams({
+        product_id: String(productId),
+        stock: String(newStock)
+      })
+    });
+
+    if (!updateResponse.ok) {
+      throw new Error("No s'ha pogut aplicar la reduccio d'estoc posterior a la compra");
+    }
+  }
+}
+
+function formToPayload(form) {
+  const data = new FormData(form);
+  const username = currentUsername();
+  return {
+    customer_name: String(data.get("customer_name") || "").trim(),
+    email: String(data.get("email") || "").trim(),
+    phone: String(data.get("phone") || "").trim(),
+    address: String(data.get("address") || "").trim(),
+    city: String(data.get("city") || "").trim(),
+    postal_code: String(data.get("postal_code") || "").trim(),
+    payment_method: String(data.get("payment_method") || "targeta").trim(),
+    notes: String(data.get("notes") || "").trim(),
+    buyer_username: username
+  };
+}
+
+function hasRequiredCheckoutFields(payload) {
+  return payload.customer_name && payload.email && payload.phone && payload.address && payload.city && payload.postal_code;
+}
+
+function redirectToOrders(orderId) {
+  const url = `comandes.html?created=${encodeURIComponent(orderId)}`;
+  window.location.href = url;
+}
+
+async function submitCheckout(event) {
+  // Flux principal de checkout.
+  event.preventDefault();
+
+  const statusEl = $("checkoutStatus");
+  hideStatus(statusEl);
+
+  const username = currentUsername();
+  if (!username) {
+    showStatus(statusEl, "error", "Has d'iniciar sessio per fer una comanda.");
+    setTimeout(() => {
+      window.location.href = "login.html?returnTo=productes.html";
+    }, 900);
+    return;
+  }
+
+  if (!state.cartItems.length) {
+    showStatus(statusEl, "error", "El carret esta buit.");
+    return;
+  }
+
+  const form = $("checkoutForm");
+  const payload = formToPayload(form);
+
+  if (!hasRequiredCheckoutFields(payload)) {
+    showStatus(statusEl, "error", "Revisa els camps obligatoris del formulari.");
+    return;
+  }
+
+  const submitBtn = $("placeOrderBtn");
+  submitBtn.disabled = true;
+  submitBtn.textContent = "Processant...";
+
+  let orderId;
+  let backendOrderCreated = false;
+
+  try {
+    if (state.apiBase) {
+      const orderedItems = state.cartItems.map((item) => ({
+        product_id: Number(item.product_id),
+        quantity: Number(item.quantity)
+      }));
+
+      if (state.useMockCart) {
+        await syncLocalCartToBackend();
+      }
+
+      const response = await fetch(`${state.apiBase}/api/comandes`, {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        credentials: "include",
+        body: new URLSearchParams(payload)
+      });
+
+      if (!response.ok) {
+        throw new Error("No s'ha pogut crear la comanda al backend");
+      }
+
+      const data = await response.json();
+      if (data.status !== "ok") {
+        throw new Error(data.message || "No s'ha pogut crear la comanda");
+      }
+
+      orderId = data.order_id;
+      backendOrderCreated = true;
+
+      // Compatibility fallback: old backends may create orders without decrementing stock.
+      if (!data.stock_updated) {
+        await applyStockFallbackAfterOrder(state.apiBase, orderedItems);
+      }
+
+      await processFakePayment(state.apiBase, orderId, payload.payment_method);
+      state.useMockCart = false;
+      await clearCartAfterCheckout();
+    } else {
+      const localOrder = buildLocalOrder(payload);
+      saveLocalOrder(localOrder);
+      orderId = localOrder.id;
+      await clearCartAfterCheckout();
+    }
+
+    showStatus(statusEl, "loading", "Comanda creada correctament. Redirigint...");
+    setTimeout(() => redirectToOrders(orderId), 700);
+  } catch (error) {
+    if (String(error.message || "").includes("pagament fictici") && orderId) {
+      showStatus(statusEl, "error", "La comanda s'ha creat, pero no s'ha pogut confirmar el pagament.");
+      setTimeout(() => redirectToOrders(orderId), 1200);
+      return;
+    }
+
+    if (backendOrderCreated) {
+      showStatus(statusEl, "error", "La comanda s'ha creat al backend, pero no s'ha pogut completar el procés.");
+      setTimeout(() => redirectToOrders(orderId), 1200);
+      return;
+    }
+
+    const localOrder = buildLocalOrder(payload);
+    saveLocalOrder(localOrder);
+    await clearCartAfterCheckout();
+    showStatus(statusEl, "loading", "Backend no disponible. Comanda guardada en mode local.");
+    setTimeout(() => redirectToOrders(localOrder.id), 900);
+    console.error(error);
+  } finally {
+    submitBtn.disabled = false;
+    submitBtn.textContent = "Confirmar comanda";
+  }
 }
 
 function wireEvents() {
@@ -302,6 +804,7 @@ function wireEvents() {
 
   $("openCheckoutBtn").addEventListener("click", () => {
     closeModal($("cartModal"));
+    hideStatus($("checkoutStatus"));
     openModal($("checkoutModal"));
   });
   $("closeCheckoutBtn").addEventListener("click", () => closeModal($("checkoutModal")));
@@ -339,6 +842,8 @@ function wireEvents() {
       toast(error.message, "error");
     }
   });
+
+  $("checkoutForm").addEventListener("submit", submitCheckout);
 }
 
 async function init() {
@@ -347,8 +852,11 @@ async function init() {
   showStatus($("cartStatus"), "loading", "Carregant carret...");
 
   state.apiBase = await detectApiBase();
+  if (state.apiBase) {
+    localStorage.setItem(API_BASE_KEY, state.apiBase);
+  }
   if (!state.apiBase) {
-    state.useMockCart = true;
+    switchToLocalCartMode();
   }
 
   try {
@@ -362,11 +870,17 @@ async function init() {
   }
 
   try {
-    state.cartItems = await fetchCart();
+    if (!state.useMockCart) {
+      setCartItems(await fetchCart());
+    }
     renderCart();
     syncCartBadge();
   } catch (_) {
-    showStatus($("cartStatus"), "error", "No s'ha pogut carregar el carret.");
+    state.useMockCart = true;
+    state.cartItems = loadLocalCart();
+    renderCart();
+    syncCartBadge();
+    toast("Carret API no disponible. Activat mode local.", "error");
   }
 }
 

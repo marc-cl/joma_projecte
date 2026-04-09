@@ -2,27 +2,53 @@
 <html lang="ca">
   <head>
     <meta charset="UTF-8">
-    <title>Comandes</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title data-i18n-title="orders.title">Les meves comandes | PONPAPERConnect</title>
     <link rel="stylesheet" href="../css/style.css">
+    <link rel="stylesheet" href="../css/comandes.css">
   </head>
   <body>
-    <header>
+    <header class="site-header">
       <div class="logo">CIPEPONPAPER<span>Connect</span></div>
-      <h1>Comandes</h1>
-      <nav>
-        <a href="../index.html">Inici</a>
-        <a href="productes.html">Productes</a>
-        <a href="comandes.html">Comandes</a>
-        <a href="contacte.html">Contacte</a>
-        <a href="admin_productes.html">Admin Productes</a>
-        <a href="admin_comandes.html">Admin Comandes</a>
+      <nav class="site-nav">
+        <ul>
+          <li><a href="../index.html" data-i18n="nav.home">Inici</a></li>
+          <li><a href="productes.html" data-i18n="nav.products">Productes</a></li>
+          <li><a href="comandes.html" class="active" data-i18n="nav.myOrders">Les meves comandes</a></li>
+          <li><a href="pressupost.html" data-i18n="nav.budget">Pressupost</a></li>
+          <li><a href="contacte.html" data-i18n="nav.contact">Contacte</a></li>
+          <li><a href="login.html" data-i18n="nav.login">Accedeix / Registra't</a></li>
+        </ul>
       </nav>
     </header>
-    <main>
-      <h2>Llistat de comandes</h2>
-      <p>Aqui apareixeran les comandes.</p>
+
+    <main class="orders-page">
+      <section class="orders-hero">
+        <h1 data-i18n="nav.myOrders">Les meves comandes</h1>
+        <p>Consulta cada comanda amb productes, dades d'entrega, metode de pagament i import total.</p>
+      </section>
+
+      <section class="orders-summary" id="ordersSummary" style="display:none;">
+        <article>
+          <span data-i18n="orders.summaryOrders">Total comandes</span>
+          <strong id="summaryOrders">0</strong>
+        </article>
+        <article>
+          <span data-i18n="orders.summaryProducts">Total productes</span>
+          <strong id="summaryItems">0</strong>
+        </article>
+        <article>
+          <span data-i18n="orders.summaryAmount">Import acumulat</span>
+          <strong>€<span id="summaryAmount">0.00</span></strong>
+        </article>
+      </section>
+
+      <div id="ordersStatus" class="orders-status loading">Carregant comandes...</div>
+      <section id="ordersContainer" class="orders-list"></section>
     </main>
+
     <script src="../js/main.js"></script>
+    <script type="module" src="../js/comandes-page.js"></script>
   </body>
 </html>
 

@@ -12,6 +12,17 @@
         <servlet-name>ServletArticle</servlet-name>
         <url-pattern>/productes</url-pattern>
         <url-pattern>/api/productes</url-pattern>
+        <url-pattern>/api/productes/stock</url-pattern>
+    </servlet-mapping>
+    <servlet>
+        <servlet-name>ServletAuth</servlet-name>
+        <servlet-class>com.tienda.servlets.ServletAuth</servlet-class>
+    </servlet>
+    <servlet-mapping>
+        <servlet-name>ServletAuth</servlet-name>
+        <url-pattern>/api/auth/login</url-pattern>
+        <url-pattern>/api/auth/logout</url-pattern>
+        <url-pattern>/api/auth/session</url-pattern>
     </servlet-mapping>
     <servlet>
         <servlet-name>ServletComanda</servlet-name>
@@ -20,6 +31,8 @@
     <servlet-mapping>
         <servlet-name>ServletComanda</servlet-name>
         <url-pattern>/comandes</url-pattern>
+        <url-pattern>/api/comandes</url-pattern>
+        <url-pattern>/api/payments/fake</url-pattern>
     </servlet-mapping>
     <servlet>
         <servlet-name>ServletCarret</servlet-name>
@@ -28,5 +41,6 @@
     <servlet-mapping>
         <servlet-name>ServletCarret</servlet-name>
         <url-pattern>/carret</url-pattern>
+        <url-pattern>/api/cart</url-pattern>
     </servlet-mapping>
 </web-app>
