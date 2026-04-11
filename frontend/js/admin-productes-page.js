@@ -1,3 +1,5 @@
+import { detectApiBase } from "./api-base.js";
+
 const state = {
   apiBase: "",
   products: []
@@ -33,29 +35,6 @@ function showStatus(kind, message) {
   el.className = `admin-status ${kind}`;
   el.textContent = message;
   el.style.display = "block";
-}
-
-async function detectApiBase() {
-  const hostBase = `${location.protocol}//${location.host}`;
-  const candidates = [
-    `${hostBase}/backend-1.0-SNAPSHOT`,
-    `${hostBase}/ponpaper-backend-1.0-SNAPSHOT`,
-    `${hostBase}/ponpaper-backend`,
-    "http://localhost:8080/backend-1.0-SNAPSHOT",
-    "http://localhost:8080/ponpaper-backend-1.0-SNAPSHOT",
-    "http://localhost:8080/ponpaper-backend"
-  ];
-
-  for (const candidate of candidates) {
-    try {
-      const response = await fetch(`${candidate}/api/productes`, { method: "GET" });
-      if (response.ok) return candidate;
-    } catch (_) {
-      // Keep trying candidates.
-    }
-  }
-
-  return "";
 }
 
 async function fetchProducts() {

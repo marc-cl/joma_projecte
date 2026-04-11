@@ -1,3 +1,10 @@
+/**
+ * Productes i carret (frontend estàtic).
+ * Els paràmetres admin_user / admin_password als requests de pagament fictici són només per a la demo del projecte;
+ * en un entorn real el pagament i l’admin s’han de protegir al servidor.
+ */
+import { detectApiBase, API_BASE_KEY } from "./api-base.js";
+
 const MOCK_PRODUCTS = [
   { id: 1, name: "Llibreta reciclada", description: "Llibreta A5 ecologica", material: "Paper reciclat", price: 8.5, stock: 25, image_url: "img/producte1.jpg" },
   { id: 2, name: "Boligraf de bambu", description: "Boligraf reutilitzable", material: "Bambu", price: 3.2, stock: 40, image_url: "img/producte2.jpg" },
@@ -12,7 +19,6 @@ const state = {
   useMockCart: false
 };
 
-const API_BASE_KEY = "ponpaperApiBase";
 const LOCAL_CART_KEY = "ponpaper_cart_local";
 const LOCAL_ORDERS_KEY_PREFIX = "ponpaper_orders_local";
 
@@ -31,12 +37,14 @@ function stockText(stock) {
 }
 
 function showStatus(el, kind, msg) {
+  if (!el) return;
   el.className = `status-box ${kind}`;
   el.textContent = msg;
   el.style.display = "block";
 }
 
 function hideStatus(el) {
+  if (!el) return;
   el.style.display = "none";
 }
 
@@ -50,45 +58,15 @@ function toast(message, kind = "success") {
   }, 2200);
 }
 
-async function detectApiBase() {
-  // Cerca la base del backend disponible.
-  const hostBase = `${location.protocol}//${location.host}`;
-  const savedBase = localStorage.getItem(API_BASE_KEY);
-  const candidates = [
-    ...(savedBase ? [savedBase] : []),
-    `${hostBase}`,
-    `${hostBase}/backend`,
-    `${hostBase}/backend-1.0-SNAPSHOT`,
-    `${hostBase}/ponpaper-backend-1.0-SNAPSHOT`,
-    `${hostBase}/ponpaper-backend`,
-    "http://localhost:8080",
-    "http://localhost:8080/backend",
-    "http://localhost:8080/backend-1.0-SNAPSHOT",
-    "http://localhost:8080/ponpaper-backend-1.0-SNAPSHOT",
-    "http://localhost:8080/ponpaper-backend",
-    "http://localhost:8081",
-    "http://localhost:8081/backend",
-    "http://localhost:8081/backend-1.0-SNAPSHOT",
-    "http://localhost:8081/ponpaper-backend"
-  ];
-
-  for (const candidate of candidates) {
-    try {
-      const response = await fetch(`${candidate}/api/productes`, { method: "GET" });
-      if (response.ok) return candidate;
-    } catch (_) {
-      // Keep searching for available backend candidate.
-    }
-  }
-  return "";
-}
-
 async function fetchProducts() {
   if (!state.apiBase) {
     return { source: "mock", items: MOCK_PRODUCTS };
   }
 
-  const response = await fetch(`${state.apiBase}/api/productes`);
+  const response = await fetch(`${state.apiBase}/api/productes`, {
+    method: "GET",
+    credentials: "include"
+  });
   if (!response.ok) {
     throw new Error("Resposta no valida de productes");
   }
@@ -272,6 +250,7 @@ function taxTotals() {
 
 function syncCartBadge() {
   const badge = $("cartBadge");
+  if (!badge) return;
   const { items } = cartTotals();
   if (items > 0) {
     badge.textContent = items;
@@ -281,11 +260,24 @@ function syncCartBadge() {
   badge.style.display = "none";
 }
 
+function updateCheckoutAmounts(subtotal, vat, finalTotal) {
+  const set = (id, value) => {
+    const node = $(id);
+    if (node) node.textContent = value;
+  };
+  set("totalAmount", finalTotal.toFixed(2));
+  set("checkoutSubtotalAmount", subtotal.toFixed(2));
+  set("checkoutVatAmount", vat.toFixed(2));
+  set("checkoutTotalAmount", finalTotal.toFixed(2));
+}
+
 function renderCart() {
   const cartStatus = $("cartStatus");
   const container = $("cartItems");
   const totalBox = $("cartTotal");
   const actions = $("cartActions");
+
+  if (!container || !totalBox || !actions) return;
 
   container.innerHTML = "";
   hideStatus(cartStatus);
@@ -294,6 +286,7 @@ function renderCart() {
     showStatus(cartStatus, "empty", "El carret es buit.");
     totalBox.style.display = "none";
     actions.style.display = "none";
+    updateCheckoutAmounts(0, 0, 0);
     return;
   }
 
@@ -314,10 +307,7 @@ function renderCart() {
   `).join("");
 
   const { subtotal, vat, total: finalTotal } = taxTotals();
-  $("totalAmount").textContent = finalTotal.toFixed(2);
-  $("subtotalAmount").textContent = subtotal.toFixed(2);
-  $("vatAmount").textContent = vat.toFixed(2);
-  $("checkoutTotalAmount").textContent = finalTotal.toFixed(2);
+  updateCheckoutAmounts(subtotal, vat, finalTotal);
   totalBox.style.display = "block";
   actions.style.display = "flex";
 }
@@ -408,6 +398,7 @@ async function addToCart(productId, quantity) {
 
     syncCartBadge();
     renderCart();
+    toast("Producte afegit al carret.", "success");
   } catch (_) {
     switchToLocalCartMode();
     addToCartLocal(product, quantity);
@@ -565,6 +556,7 @@ function buildLocalOrder(formData) {
 }
 
 async function processFakePayment(apiBase, orderId, paymentMethod) {
+  // Demo: el backend accepta credencials d’admin per marcar el pagament; només per a l’entorn de pràctiques.
   const payload = new URLSearchParams({
     order_id: String(orderId),
     payment_method: String(paymentMethod || "targeta"),
@@ -602,6 +594,7 @@ async function processFakePayment(apiBase, orderId, paymentMethod) {
 }
 
 async function loginAdminForStockUpdate(apiBase) {
+  // Demo: credencials fixtes només per a l’entorn de pràctiques (ajust d’estoc després de comanda).
   const response = await fetch(`${apiBase}/api/auth/login`, {
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
@@ -719,8 +712,10 @@ async function submitCheckout(event) {
   }
 
   const submitBtn = $("placeOrderBtn");
-  submitBtn.disabled = true;
-  submitBtn.textContent = "Processant...";
+  if (submitBtn) {
+    submitBtn.disabled = true;
+    submitBtn.textContent = "Preparant...";
+  }
 
   let orderId;
   let backendOrderCreated = false;
@@ -733,8 +728,13 @@ async function submitCheckout(event) {
       }));
 
       if (state.useMockCart) {
+        showStatus(statusEl, "loading", "Sincronitzant el carret amb el servidor...");
+        if (submitBtn) submitBtn.textContent = "Sincronitzant carret...";
         await syncLocalCartToBackend();
       }
+
+      if (submitBtn) submitBtn.textContent = "Creant comanda...";
+      showStatus(statusEl, "loading", "Creant la comanda al servidor...");
 
       const response = await fetch(`${state.apiBase}/api/comandes`, {
         method: "POST",
@@ -757,9 +757,12 @@ async function submitCheckout(event) {
 
       // Compatibility fallback: old backends may create orders without decrementing stock.
       if (!data.stock_updated) {
+        showStatus(statusEl, "loading", "Actualitzant estoc...");
         await applyStockFallbackAfterOrder(state.apiBase, orderedItems);
       }
 
+      if (submitBtn) submitBtn.textContent = "Confirmant pagament (demo)...";
+      showStatus(statusEl, "loading", "Confirmant el pagament de demostració...");
       await processFakePayment(state.apiBase, orderId, payload.payment_method);
       state.useMockCart = false;
       await clearCartAfterCheckout();
@@ -770,10 +773,12 @@ async function submitCheckout(event) {
       await clearCartAfterCheckout();
     }
 
-    showStatus(statusEl, "loading", "Comanda creada correctament. Redirigint...");
+    showStatus(statusEl, "loading", "Comanda registrada. Redirigint...");
     setTimeout(() => redirectToOrders(orderId), 700);
   } catch (error) {
-    if (String(error.message || "").includes("pagament fictici") && orderId) {
+    const errMsg = error instanceof Error ? error.message : String(error);
+
+    if (String(errMsg).includes("pagament fictici") && orderId) {
       showStatus(statusEl, "error", "La comanda s'ha creat, pero no s'ha pogut confirmar el pagament.");
       setTimeout(() => redirectToOrders(orderId), 1200);
       return;
@@ -785,15 +790,34 @@ async function submitCheckout(event) {
       return;
     }
 
-    const localOrder = buildLocalOrder(payload);
-    saveLocalOrder(localOrder);
-    await clearCartAfterCheckout();
-    showStatus(statusEl, "loading", "Backend no disponible. Comanda guardada en mode local.");
-    setTimeout(() => redirectToOrders(localOrder.id), 900);
+    const networkLikely =
+      /failed to fetch|network|aborted|load failed|fetch/i.test(errMsg) || errMsg === "";
+
+    showStatus(
+      statusEl,
+      "error",
+      networkLikely
+        ? `Error de connexió: ${errMsg || "No s'ha pogut contactar el servidor."}`
+        : errMsg || "No s'ha pogut completar la comanda."
+    );
     console.error(error);
+
+    if (networkLikely) {
+      const localOrder = buildLocalOrder(payload);
+      saveLocalOrder(localOrder);
+      await clearCartAfterCheckout();
+      showStatus(
+        statusEl,
+        "loading",
+        "Comanda guardada en mode local (sense connexió fiable al servidor). Redirigint..."
+      );
+      setTimeout(() => redirectToOrders(localOrder.id), 1100);
+    }
   } finally {
-    submitBtn.disabled = false;
-    submitBtn.textContent = "Confirmar comanda";
+    if (submitBtn) {
+      submitBtn.disabled = false;
+      submitBtn.textContent = "Confirmar comanda";
+    }
   }
 }
 
@@ -805,6 +829,7 @@ function wireEvents() {
   $("openCheckoutBtn").addEventListener("click", () => {
     closeModal($("cartModal"));
     hideStatus($("checkoutStatus"));
+    renderCart();
     openModal($("checkoutModal"));
   });
   $("closeCheckoutBtn").addEventListener("click", () => closeModal($("checkoutModal")));
@@ -848,7 +873,7 @@ function wireEvents() {
 
 async function init() {
   wireEvents();
-  showStatus($("productsStatus"), "loading", "Carregant productes...");
+  showStatus($("productsStatus"), "loading", "Detectant servidor i carregant productes...");
   showStatus($("cartStatus"), "loading", "Carregant carret...");
 
   state.apiBase = await detectApiBase();
@@ -863,10 +888,22 @@ async function init() {
     const result = await fetchProducts();
     state.products = result.items || [];
     renderProducts();
+    if (result.source === "mock") {
+      showStatus(
+        $("productsStatus"),
+        "empty",
+        "Mode demostració: sense connexió al backend es mostren productes de prova i el carret es local. " +
+          "Arrenca Jetty (WAR), serveix el frontend per http (no file://) o defineix window.__PONPAPER_API_BASE__ a config.js."
+      );
+    }
   } catch (_) {
     state.products = MOCK_PRODUCTS;
     renderProducts();
-    toast("API no disponible. Carregats productes mock.", "error");
+    showStatus(
+      $("productsStatus"),
+      "empty",
+      "Error carregant productes de l’API. Es mostren 4 productes de demostració."
+    );
   }
 
   try {
@@ -880,7 +917,9 @@ async function init() {
     state.cartItems = loadLocalCart();
     renderCart();
     syncCartBadge();
-    toast("Carret API no disponible. Activat mode local.", "error");
+    if (state.apiBase) {
+      toast("Carret API no disponible. Activat mode local.", "info");
+    }
   }
 }
 

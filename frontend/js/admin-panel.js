@@ -1,3 +1,11 @@
+import {
+  API_BASE_KEY,
+  buildApiCandidates,
+  detectApiBase,
+  detectApiBaseWithAdminSession,
+  fetchWithTimeout
+} from "./api-base.js";
+
 const state = {
   apiBase: "",
   products: [],
@@ -5,7 +13,6 @@ const state = {
   activeTab: "productes"
 };
 
-const API_BASE_KEY = "ponpaperApiBase";
 const LOCAL_ORDERS_KEY_PREFIX = "ponpaper_orders_local";
 
 const ORDER_STATUSES = ["pendent", "preparant", "enviada", "entregada", "cancelada"];
@@ -74,67 +81,9 @@ function wireTabEvents() {
   });
 }
 
-function buildApiCandidates() {
-  // Llista de bases possibles del backend.
-  const hostBase = `${location.protocol}//${location.host}`;
-  const savedBase = localStorage.getItem(API_BASE_KEY);
-  return [...new Set([
-    ...(savedBase ? [savedBase] : []),
-    `${hostBase}`,
-    `${hostBase}/backend`,
-    `${hostBase}/backend-1.0-SNAPSHOT`,
-    `${hostBase}/ponpaper-backend-1.0-SNAPSHOT`,
-    `${hostBase}/ponpaper-backend`,
-    "http://127.0.0.1:8080",
-    "http://127.0.0.1:8080/backend",
-    "http://127.0.0.1:8080/backend-1.0-SNAPSHOT",
-    "http://127.0.0.1:8080/ponpaper-backend-1.0-SNAPSHOT",
-    "http://127.0.0.1:8080/ponpaper-backend",
-    "http://localhost:8080/backend-1.0-SNAPSHOT",
-    "http://localhost:8080/ponpaper-backend-1.0-SNAPSHOT",
-    "http://localhost:8080/ponpaper-backend",
-    "http://localhost:8080",
-    "http://localhost:8080/backend"
-  ])];
-}
-
-async function detectApiBase() {
-  for (const candidate of buildApiCandidates()) {
-    try {
-      const response = await fetch(`${candidate}/api/productes`, { method: "GET" });
-      if (response.ok) return candidate;
-    } catch (_) {
-      // Keep trying candidates.
-    }
-  }
-
-  return "";
-}
-
-async function detectApiBaseWithAdminSession() {
-  // Prioritza la base on la sessio admin ja es valida.
-  for (const candidate of buildApiCandidates()) {
-    try {
-      const response = await fetch(`${candidate}/api/auth/session`, {
-        method: "GET",
-        credentials: "include"
-      });
-      if (!response.ok) continue;
-      const data = await response.json();
-      if (data.status === "ok" && data.authenticated === true && data.role === "admin") {
-        return candidate;
-      }
-    } catch (_) {
-      // Keep trying candidates.
-    }
-  }
-
-  return "";
-}
-
 async function updateWithCandidate(base, path, payload, method = "PUT") {
   // Wrapper unic per crides d'actualitzacio.
-  const response = await fetch(`${base}${path}`, {
+  const response = await fetchWithTimeout(`${base}${path}`, {
     method,
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
     credentials: "include",
@@ -150,13 +99,16 @@ async function updateWithCandidate(base, path, payload, method = "PUT") {
 }
 
 async function loginAdminAtBase(base) {
-  // Reobre sessio admin per la base candidata.
-  const response = await fetch(`${base}/api/auth/login`, {
-    method: "POST",
-    headers: { "Content-Type": "application/x-www-form-urlencoded" },
-    credentials: "include",
-    body: new URLSearchParams({ username: ADMIN_USER, password: ADMIN_PASSWORD })
-  });
+  // Reobre sessio admin per la base candidata (demo: credencials en clar només per a l’entorn de pràctiques).
+  const response = await fetchWithTimeout(
+    `${base}/api/auth/login`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      credentials: "include",
+      body: new URLSearchParams({ username: ADMIN_USER, password: ADMIN_PASSWORD })
+    }
+  );
 
   if (!response.ok) {
     return false;

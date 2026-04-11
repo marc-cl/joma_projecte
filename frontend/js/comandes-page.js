@@ -1,5 +1,6 @@
+import { detectApiBase, API_BASE_KEY } from "./api-base.js";
+
 const LOCAL_ORDERS_KEY_PREFIX = "ponpaper_orders_local";
-const API_BASE_KEY = "ponpaperApiBase";
 
 const state = {
   apiBase: "",
@@ -17,13 +18,16 @@ function errorMessage(error, fallback) {
 
 function showStatus(kind, message) {
   const box = $("ordersStatus");
+  if (!box) return;
   box.className = `orders-status ${kind}`;
   box.textContent = message;
   box.style.display = "block";
 }
 
 function hideStatus() {
-  $("ordersStatus").style.display = "none";
+  const box = $("ordersStatus");
+  if (!box) return;
+  box.style.display = "none";
 }
 
 function readLocalOrders() {
@@ -41,39 +45,6 @@ function readLocalOrders() {
 
 function currentUsername() {
   return String(localStorage.getItem("username") || "").trim();
-}
-
-async function detectApiBase() {
-  const hostBase = `${location.protocol}//${location.host}`;
-  const savedBase = localStorage.getItem(API_BASE_KEY);
-  const candidates = [
-    ...(savedBase ? [savedBase] : []),
-    `${hostBase}`,
-    `${hostBase}/backend`,
-    `${hostBase}/backend-1.0-SNAPSHOT`,
-    `${hostBase}/ponpaper-backend-1.0-SNAPSHOT`,
-    `${hostBase}/ponpaper-backend`,
-    "http://localhost:8080",
-    "http://localhost:8080/backend",
-    "http://localhost:8080/backend-1.0-SNAPSHOT",
-    "http://localhost:8080/ponpaper-backend-1.0-SNAPSHOT",
-    "http://localhost:8080/ponpaper-backend",
-    "http://localhost:8081",
-    "http://localhost:8081/backend",
-    "http://localhost:8081/backend-1.0-SNAPSHOT",
-    "http://localhost:8081/ponpaper-backend"
-  ];
-
-  for (const candidate of candidates) {
-    try {
-      const response = await fetch(`${candidate}/api/productes`, { method: "GET" });
-      if (response.ok) return candidate;
-    } catch (_) {
-      // Continue trying alternatives.
-    }
-  }
-
-  return "";
 }
 
 async function fetchApiOrders() {
@@ -237,14 +208,19 @@ function renderSummary(orders) {
   const totalItems = orders.reduce((sum, order) => sum + Number(order.total_items || 0), 0);
   const totalAmount = orders.reduce((sum, order) => sum + Number(order.total_amount || 0), 0);
 
-  $("summaryOrders").textContent = String(totalOrders);
-  $("summaryItems").textContent = String(totalItems);
-  $("summaryAmount").textContent = toMoney(totalAmount);
-  $("ordersSummary").style.display = totalOrders ? "grid" : "none";
+  const so = $("summaryOrders");
+  const si = $("summaryItems");
+  const sa = $("summaryAmount");
+  const os = $("ordersSummary");
+  if (so) so.textContent = String(totalOrders);
+  if (si) si.textContent = String(totalItems);
+  if (sa) sa.textContent = toMoney(totalAmount);
+  if (os) os.style.display = totalOrders ? "grid" : "none";
 }
 
 function renderOrders(orders) {
   const container = $("ordersContainer");
+  if (!container) return;
   const createdId = highlightOrderId();
   const username = currentUsername();
 

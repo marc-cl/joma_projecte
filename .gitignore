@@ -1,2 +1,3 @@
 # Ignora carpetes i fitxers generats per Maven/Java
 /target/
+backend/target/

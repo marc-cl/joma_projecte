@@ -1,3 +1,5 @@
+import { detectApiBase } from "./api-base.js";
+
 const state = {
   apiBase: "",
   orders: []
@@ -51,29 +53,6 @@ function toDate(value) {
     hour: "2-digit",
     minute: "2-digit"
   });
-}
-
-async function detectApiBase() {
-  const hostBase = `${location.protocol}//${location.host}`;
-  const candidates = [
-    `${hostBase}/backend-1.0-SNAPSHOT`,
-    `${hostBase}/ponpaper-backend-1.0-SNAPSHOT`,
-    `${hostBase}/ponpaper-backend`,
-    "http://localhost:8080/backend-1.0-SNAPSHOT",
-    "http://localhost:8080/ponpaper-backend-1.0-SNAPSHOT",
-    "http://localhost:8080/ponpaper-backend"
-  ];
-
-  for (const candidate of candidates) {
-    try {
-      const response = await fetch(`${candidate}/api/productes`, { method: "GET" });
-      if (response.ok) return candidate;
-    } catch (_) {
-      // Keep trying candidates.
-    }
-  }
-
-  return "";
 }
 
 async function fetchOrders() {

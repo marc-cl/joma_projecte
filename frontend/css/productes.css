@@ -246,6 +246,10 @@
   background: #d64545;
 }
 
+.toast.info {
+  background: #3d6b9a;
+}
+
 @media (max-width: 768px) {
   .cart-item {
     grid-template-columns: 1fr;
