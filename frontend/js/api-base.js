@@ -38,6 +38,12 @@ async function probeProductsBase(base) {
   if (!normalized) throw new Error("empty base");
   const response = await fetchWithTimeout(`${normalized}/api/productes`, { method: "GET" });
   if (!response.ok) throw new Error("not ok");
+  const contentType = (response.headers.get("content-type") || "").toLowerCase();
+  if (!contentType.includes("application/json")) throw new Error("not json");
+  const data = await response.json();
+  if (!data || data.status !== "ok" || !Array.isArray(data.productes)) {
+    throw new Error("unexpected payload");
+  }
   return normalized;
 }
 

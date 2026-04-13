@@ -188,15 +188,13 @@
   };
 
   function getLanguage() {
-    const saved = String(localStorage.getItem(LANG_KEY) || "").trim().toLowerCase();
-    if (saved === "ca" || saved === "es" || saved === "en") {
-      return saved;
-    }
+    // Multillenguatge pausat temporalment: sempre catala.
     return DEFAULT_LANG;
   }
 
   function setLanguage(lang) {
-    localStorage.setItem(LANG_KEY, lang);
+    // Manté la clau en catala per poder reactivar idiomes en el futur.
+    localStorage.setItem(LANG_KEY, lang === "ca" ? "ca" : DEFAULT_LANG);
     applyTranslations();
   }
 
@@ -236,29 +234,7 @@
   }
 
   function injectLanguageTabs() {
-    const header = document.querySelector(".site-header");
-    if (!header || document.getElementById("language-selector-tabs")) return;
-
-    const wrapper = document.createElement("div");
-    wrapper.id = "language-selector-tabs";
-    wrapper.className = "language-tabs";
-
-    const langs = ["ca", "es", "en"];
-    for (const lang of langs) {
-      const button = document.createElement("button");
-      button.type = "button";
-      button.setAttribute("data-lang", lang);
-      button.textContent = t(`lang.${lang}`);
-      button.addEventListener("click", () => setLanguage(lang));
-      wrapper.appendChild(button);
-    }
-
-    const userArea = header.querySelector(".user-area");
-    if (userArea) {
-      header.insertBefore(wrapper, userArea);
-    } else {
-      header.appendChild(wrapper);
-    }
+    // Selector ocult mentre només es mostra catala.
   }
 
   function detectApiCandidates() {

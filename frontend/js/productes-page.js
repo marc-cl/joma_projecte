@@ -421,19 +421,32 @@ async function updateCart(productId, qty) {
     return;
   }
 
-  const payload = new URLSearchParams({ product_id: String(productId), quantity: String(safeQty) });
-  const response = await fetch(`${state.apiBase}/api/cart`, {
-    method: "PUT",
-    headers: { "Content-Type": "application/x-www-form-urlencoded" },
-    credentials: "include",
-    body: payload
-  });
-  if (!response.ok) throw new Error("No s'ha pogut actualitzar el carret");
-  const data = await response.json();
-  if (data.status !== "ok") throw new Error(data.message || "No s'ha pogut actualitzar el carret");
-  setCartItems(data.items);
-  syncCartBadge();
-  renderCart();
+  try {
+    const payload = new URLSearchParams({ product_id: String(productId), quantity: String(safeQty) });
+    const response = await fetch(`${state.apiBase}/api/cart`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      credentials: "include",
+      body: payload
+    });
+    if (!response.ok) throw new Error("No s'ha pogut actualitzar el carret");
+    const data = await response.json();
+    if (data.status !== "ok") throw new Error(data.message || "No s'ha pogut actualitzar el carret");
+    setCartItems(data.items);
+    syncCartBadge();
+    renderCart();
+  } catch (_) {
+    // Manté operatiu el carret encara que la sessio backend falli en calent.
+    switchToLocalCartMode();
+    const item = state.cartItems.find((i) => Number(i.product_id) === Number(productId));
+    if (!item) return;
+    item.quantity = safeQty;
+    item.item_total = item.price * item.quantity;
+    syncCartBadge();
+    renderCart();
+    saveLocalCart();
+    toast("Carret API no disponible. Actualitzat en mode local.", "info");
+  }
 }
 
 async function removeFromCart(cartId) {
@@ -445,16 +458,25 @@ async function removeFromCart(cartId) {
     return;
   }
 
-  const response = await fetch(`${state.apiBase}/api/cart?cart_item_id=${cartId}`, {
-    method: "DELETE",
-    credentials: "include"
-  });
-  if (!response.ok) throw new Error("No s'ha pogut eliminar del carret");
-  const data = await response.json();
-  if (data.status !== "ok") throw new Error(data.message || "No s'ha pogut eliminar del carret");
-  setCartItems(data.items);
-  syncCartBadge();
-  renderCart();
+  try {
+    const response = await fetch(`${state.apiBase}/api/cart?cart_item_id=${cartId}`, {
+      method: "DELETE",
+      credentials: "include"
+    });
+    if (!response.ok) throw new Error("No s'ha pogut eliminar del carret");
+    const data = await response.json();
+    if (data.status !== "ok") throw new Error(data.message || "No s'ha pogut eliminar del carret");
+    setCartItems(data.items);
+    syncCartBadge();
+    renderCart();
+  } catch (_) {
+    switchToLocalCartMode();
+    state.cartItems = state.cartItems.filter((it) => Number(it.id) !== Number(cartId));
+    syncCartBadge();
+    renderCart();
+    saveLocalCart();
+    toast("Carret API no disponible. Eliminat en mode local.", "info");
+  }
 }
 
 async function clearCartAfterCheckout() {
@@ -466,16 +488,24 @@ async function clearCartAfterCheckout() {
     return;
   }
 
-  const response = await fetch(`${state.apiBase}/api/cart?clear=true`, {
-    method: "DELETE",
-    credentials: "include"
-  });
-  if (!response.ok) throw new Error("No s'ha pogut buidar el carret");
-  const data = await response.json();
-  if (data.status !== "ok") throw new Error(data.message || "No s'ha pogut buidar el carret");
-  setCartItems(data.items);
-  syncCartBadge();
-  renderCart();
+  try {
+    const response = await fetch(`${state.apiBase}/api/cart?clear=true`, {
+      method: "DELETE",
+      credentials: "include"
+    });
+    if (!response.ok) throw new Error("No s'ha pogut buidar el carret");
+    const data = await response.json();
+    if (data.status !== "ok") throw new Error(data.message || "No s'ha pogut buidar el carret");
+    setCartItems(data.items);
+    syncCartBadge();
+    renderCart();
+  } catch (_) {
+    switchToLocalCartMode();
+    state.cartItems = [];
+    saveLocalCart();
+    syncCartBadge();
+    renderCart();
+  }
 }
 
 async function syncLocalCartToBackend() {
