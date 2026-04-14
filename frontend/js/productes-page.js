@@ -111,6 +111,8 @@ function setCartItems(items) {
   }
 
   state.cartItems = Array.from(byProductId.values());
+  // Manté un mirall local del carret per evitar desajustos en finalitzar compra.
+  saveLocalCart();
 }
 
 function mergeCartItems(baseItems, incomingItems) {
@@ -178,7 +180,88 @@ function loadLocalCart() {
 }
 
 function saveLocalCart() {
-  localStorage.setItem(LOCAL_CART_KEY, JSON.stringify(state.cartItems));
+  try {
+    localStorage.setItem(LOCAL_CART_KEY, JSON.stringify(state.cartItems));
+  } catch (_) {
+    // Ignore storage errors (quota/private mode).
+  }
+}
+
+function readCartFromDom() {
+  const nodes = document.querySelectorAll("#cartItems .cart-item");
+  if (!nodes.length) return [];
+
+  return Array.from(nodes).map((node) => {
+    const productId = Number(node.dataset.productId);
+    const cartId = Number(node.dataset.cartId);
+    const quantityText = node.querySelector(".cart-item-quantity-wrap span")?.textContent || "0";
+    const priceText = node.querySelector(".cart-item-price")?.textContent || "0";
+    const totalText = node.querySelector("[data-role='remove']")?.previousElementSibling?.textContent || "0";
+
+    return {
+      id: Number.isFinite(cartId) ? cartId : Date.now(),
+      product_id: Number.isFinite(productId) ? productId : 0,
+      name: node.querySelector(".cart-item-name")?.textContent?.trim() || "Producte",
+      price: Number(String(priceText).replace(/[^0-9.,]/g, "").replace(",", ".")) || 0,
+      quantity: Number(quantityText) || 0,
+      item_total: Number(String(totalText).replace(/[^0-9.,]/g, "").replace(",", ".")) || 0
+    };
+  }).filter((item) => item.product_id > 0 && item.quantity > 0);
+}
+
+function cartSignature(items) {
+  return normalizeCartItems(items)
+    .map((item) => ({ product_id: Number(item.product_id), quantity: Number(item.quantity) }))
+    .filter((item) => item.product_id > 0 && item.quantity > 0)
+    .sort((a, b) => a.product_id - b.product_id)
+    .map((item) => `${item.product_id}:${item.quantity}`)
+    .join("|");
+}
+
+async function collectCartSnapshot() {
+  const currentStateItems = normalizeCartItems(state.cartItems);
+  const debugSources = {
+    state: currentStateItems.length,
+    backend: 0,
+    local: 0,
+    dom: 0
+  };
+
+  if (currentStateItems.length) {
+    debugSources.local = currentStateItems.length;
+    return currentStateItems;
+  }
+
+  if (state.apiBase) {
+    try {
+      const response = await fetch(`${state.apiBase}/api/cart`, { method: "GET", credentials: "include" });
+      if (response.ok) {
+        const data = await response.json();
+        const backendItems = Array.isArray(data?.items) ? normalizeCartItems(data.items) : [];
+        debugSources.backend = backendItems.length;
+        if (backendItems.length) {
+          state.useMockCart = false;
+          console.info("checkout-cart-debug", debugSources);
+          return backendItems;
+        }
+      }
+    } catch (_) {
+      // Continuem amb els altres orígens.
+    }
+  }
+
+  const localItems = loadLocalCart();
+  debugSources.local = localItems.length;
+  if (localItems.length) {
+    state.useMockCart = true;
+    console.info("checkout-cart-debug", debugSources);
+    return localItems;
+  }
+
+  const domItems = readCartFromDom();
+  debugSources.dom = domItems.length;
+  console.info("checkout-cart-debug", debugSources);
+  return domItems;
 }
 
 function currentUsername() {
@@ -551,6 +634,63 @@ async function syncLocalCartToBackend() {
   }
 }
 
+async function syncCheckoutCartToBackend(checkoutCart) {
+  if (!state.apiBase || !checkoutCart.length) {
+    return;
+  }
+
+  let backendItems = [];
+  try {
+    const response = await fetch(`${state.apiBase}/api/cart`, { method: "GET", credentials: "include" });
+    if (response.ok) {
+      const data = await response.json();
+      backendItems = Array.isArray(data?.items) ? normalizeCartItems(data.items) : [];
+    }
+  } catch (_) {
+    backendItems = [];
+  }
+
+  if (cartSignature(backendItems) === cartSignature(checkoutCart)) {
+    return;
+  }
+
+  const clearResponse = await fetch(`${state.apiBase}/api/cart?clear=true`, {
+    method: "DELETE",
+    credentials: "include"
+  });
+  if (!clearResponse.ok) {
+    throw new Error("No s'ha pogut preparar el carret al backend");
+  }
+
+  const clearData = await clearResponse.json();
+  if (clearData.status !== "ok") {
+    throw new Error(clearData.message || "No s'ha pogut preparar el carret al backend");
+  }
+
+  for (const item of checkoutCart) {
+    const payload = new URLSearchParams({
+      product_id: String(item.product_id),
+      quantity: String(item.quantity)
+    });
+
+    const addResponse = await fetch(`${state.apiBase}/api/cart`, {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      credentials: "include",
+      body: payload
+    });
+
+    if (!addResponse.ok) {
+      throw new Error("No s'ha pogut sincronitzar el carret amb el backend");
+    }
+
+    const addData = await addResponse.json();
+    if (addData.status !== "ok") {
+      throw new Error(addData.message || "No s'ha pogut sincronitzar el carret amb el backend");
+    }
+  }
+}
+
 function buildLocalOrder(formData) {
   const { subtotal, vat, total } = taxTotals();
   const { items } = cartTotals();
@@ -703,6 +843,35 @@ function formToPayload(form) {
   };
 }
 
+async function hydrateCartBeforeCheckout() {
+  // Rehidratació defensiva: evita falsos "carret buit" si l'estat en memòria s'ha perdut.
+  // Prioritza backend sempre que hi hagi API, encara que estiguem en mode local temporal.
+  if (!state.apiBase) {
+    try {
+      state.apiBase = await detectApiBase();
+      if (state.apiBase) {
+        localStorage.setItem(API_BASE_KEY, state.apiBase);
+      }
+    } catch (_) {
+      state.apiBase = "";
+    }
+  }
+
+  const snapshot = await collectCartSnapshot();
+  if (snapshot.length) {
+    setCartItems(snapshot);
+    if (state.useMockCart) {
+      saveLocalCart();
+    }
+  }
+}
+
+async function hydrateCartBeforeRender() {
+  if (!state.cartItems.length) {
+    await hydrateCartBeforeCheckout();
+  }
+}
+
 function hasRequiredCheckoutFields(payload) {
   return payload.customer_name && payload.email && payload.phone && payload.address && payload.city && payload.postal_code;
 }
@@ -728,7 +897,17 @@ async function submitCheckout(event) {
     return;
   }
 
-  if (!state.cartItems.length) {
+  await hydrateCartBeforeCheckout();
+  const checkoutCart = await collectCartSnapshot();
+
+  if (!checkoutCart.length) {
+    console.warn("checkout-cart-debug-empty", {
+      apiBase: state.apiBase || "",
+      useMockCart: state.useMockCart,
+      stateItems: normalizeCartItems(state.cartItems).length,
+      localItems: loadLocalCart().length,
+      domItems: readCartFromDom().length
+    });
     showStatus(statusEl, "error", "El carret esta buit.");
     return;
   }
@@ -752,25 +931,29 @@ async function submitCheckout(event) {
 
   try {
     if (state.apiBase) {
-      const orderedItems = state.cartItems.map((item) => ({
+      const orderedItems = checkoutCart.map((item) => ({
         product_id: Number(item.product_id),
         quantity: Number(item.quantity)
       }));
 
-      if (state.useMockCart) {
-        showStatus(statusEl, "loading", "Sincronitzant el carret amb el servidor...");
-        if (submitBtn) submitBtn.textContent = "Sincronitzant carret...";
-        await syncLocalCartToBackend();
-      }
+      showStatus(statusEl, "loading", "Sincronitzant el carret amb el servidor...");
+      if (submitBtn) submitBtn.textContent = "Sincronitzant carret...";
+      await syncCheckoutCartToBackend(checkoutCart);
 
       if (submitBtn) submitBtn.textContent = "Creant comanda...";
       showStatus(statusEl, "loading", "Creant la comanda al servidor...");
+
+      const checkoutPayload = new URLSearchParams(payload);
+      for (const item of checkoutCart) {
+        checkoutPayload.append("cart_product_id", String(item.product_id));
+        checkoutPayload.append("cart_quantity", String(item.quantity));
+      }
 
       const response = await fetch(`${state.apiBase}/api/comandes`, {
         method: "POST",
         headers: { "Content-Type": "application/x-www-form-urlencoded" },
         credentials: "include",
-        body: new URLSearchParams(payload)
+        body: checkoutPayload
       });
 
       if (!response.ok) {
@@ -798,6 +981,17 @@ async function submitCheckout(event) {
       await clearCartAfterCheckout();
     } else {
       const localOrder = buildLocalOrder(payload);
+      localOrder.items = checkoutCart.map((item) => ({
+        product_id: Number(item.product_id),
+        name: item.name,
+        price: Number(item.price),
+        quantity: Number(item.quantity),
+        line_total: Number(item.item_total)
+      }));
+      localOrder.total_items = checkoutCart.reduce((sum, item) => sum + Number(item.quantity || 0), 0);
+      localOrder.subtotal_amount = Number(checkoutCart.reduce((sum, item) => sum + Number(item.item_total || 0), 0).toFixed(2));
+      localOrder.vat_amount = Number((localOrder.subtotal_amount * 0.21).toFixed(2));
+      localOrder.total_amount = Number((localOrder.subtotal_amount + localOrder.vat_amount).toFixed(2));
       saveLocalOrder(localOrder);
       orderId = localOrder.id;
       await clearCartAfterCheckout();
@@ -834,6 +1028,17 @@ async function submitCheckout(event) {
 
     if (networkLikely) {
       const localOrder = buildLocalOrder(payload);
+      localOrder.items = checkoutCart.map((item) => ({
+        product_id: Number(item.product_id),
+        name: item.name,
+        price: Number(item.price),
+        quantity: Number(item.quantity),
+        line_total: Number(item.item_total)
+      }));
+      localOrder.total_items = checkoutCart.reduce((sum, item) => sum + Number(item.quantity || 0), 0);
+      localOrder.subtotal_amount = Number(checkoutCart.reduce((sum, item) => sum + Number(item.item_total || 0), 0).toFixed(2));
+      localOrder.vat_amount = Number((localOrder.subtotal_amount * 0.21).toFixed(2));
+      localOrder.total_amount = Number((localOrder.subtotal_amount + localOrder.vat_amount).toFixed(2));
       saveLocalOrder(localOrder);
       await clearCartAfterCheckout();
       showStatus(
@@ -852,14 +1057,19 @@ async function submitCheckout(event) {
 }
 
 function wireEvents() {
-  $("openCartBtn").addEventListener("click", () => openModal($("cartModal")));
+  $("openCartBtn").addEventListener("click", async () => {
+    await hydrateCartBeforeRender();
+    renderCart();
+    openModal($("cartModal"));
+  });
   $("closeCartBtn").addEventListener("click", () => closeModal($("cartModal")));
   $("closeCartActionBtn").addEventListener("click", () => closeModal($("cartModal")));
 
-  $("openCheckoutBtn").addEventListener("click", () => {
+  $("openCheckoutBtn").addEventListener("click", async () => {
+    await hydrateCartBeforeRender();
+    renderCart();
     closeModal($("cartModal"));
     hideStatus($("checkoutStatus"));
-    renderCart();
     openModal($("checkoutModal"));
   });
   $("closeCheckoutBtn").addEventListener("click", () => closeModal($("checkoutModal")));

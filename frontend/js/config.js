@@ -15,6 +15,7 @@
   }
   var h = window.location.hostname;
   if (h === "localhost" || h === "127.0.0.1") {
-    window.__PONPAPER_API_BASE__ = "http://localhost:8080/backend-1.0-SNAPSHOT";
+    var protocol = window.location.protocol === "https:" ? "https:" : "http:";
+    window.__PONPAPER_API_BASE__ = protocol + "//" + h + ":8080/backend-1.0-SNAPSHOT";
   }
 })();

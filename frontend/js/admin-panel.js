@@ -143,20 +143,20 @@ async function fetchProducts() {
 
 async function fetchOrders() {
   try {
-    // Primer intenta via sessio actual.
-    let response = await fetch(`${state.apiBase}/api/comandes?scope=all`, {
+    const params = new URLSearchParams({
+      scope: "all",
+      admin_user: ADMIN_USER,
+      admin_password: ADMIN_PASSWORD
+    });
+
+    // Inclou credencials admin per evitar dependre de cookie/sessio.
+    let response = await fetch(`${state.apiBase}/api/comandes?${params.toString()}`, {
       method: "GET",
       credentials: "include"
     });
 
     // Fallback per entorns amb sessio no valida.
     if (response.status === 401 || response.status === 403) {
-      const params = new URLSearchParams({
-        scope: "all",
-        admin_user: ADMIN_USER,
-        admin_password: ADMIN_PASSWORD
-      });
-
       response = await fetch(`${state.apiBase}/api/comandes?${params.toString()}`, {
         method: "GET",
         credentials: "include"
@@ -257,7 +257,7 @@ function refreshProductsInBackground() {
       renderProducts();
     })
     .catch(() => {
-      // Manté la vista optimista si el refresc falla.
+     
     });
 }
 
@@ -378,7 +378,7 @@ async function updateStock(productId, stock) {
         return true;
       }
     } catch (_) {
-      // Try next candidate.
+   
     }
   }
 
@@ -404,7 +404,7 @@ function updateLocalOrderStatus(orderId, status) {
       });
       localStorage.setItem(key, JSON.stringify(mapped));
     } catch (_) {
-      // Ignore malformed buckets.
+      
     }
   }
 
@@ -417,7 +417,7 @@ function updateLocalOrderStatus(orderId, status) {
 }
 
 async function updateOrderStatus(orderId, status) {
-  // Prova backend; si no existeix, actualitza local.
+ 
   const payload = new URLSearchParams({
     order_id: String(orderId),
     status
@@ -438,7 +438,7 @@ async function updateOrderStatus(orderId, status) {
         }
       }
     } catch (_) {
-      // Try next candidate.
+      
     }
   }
 

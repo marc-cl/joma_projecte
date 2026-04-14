@@ -1,5 +1,6 @@
 package com.tienda.servlets;
 
+import com.tienda.productes.Article;
 import com.tienda.productes.RepositoriArticles;
 import com.tienda.security.SecurityUtils;
 
@@ -51,9 +52,10 @@ public class ServletComanda extends HttpServlet {
         if ("/api/comandes".equals(req.getServletPath())) {
             String scope = safe(req.getParameter("scope")).toLowerCase(Locale.ROOT);
             String username = safe(req.getParameter("username"));
+            boolean adminRequest = isAdminRequest(req);
 
-            if ("all".equals(scope)) {
-                if (!isAdminRequest(req)) {
+            if ("all".equals(scope) || adminRequest) {
+                if (!adminRequest) {
                     resp.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
                     resp.setContentType("application/json;charset=UTF-8");
                     resp.getWriter().write(errorJson("No autoritzat per consultar totes les comandes."));
@@ -118,22 +120,33 @@ public class ServletComanda extends HttpServlet {
 
         HttpSession session = req.getSession();
         Map<Integer, ServletCarret.CartItem> sessionCart = getSessionCart(session);
-        if (sessionCart.isEmpty()) {
-            resp.getWriter().write(errorJson("El carret esta buit."));
-            return;
-        }
-
         List<OrderItem> items = new ArrayList<>();
         int totalItems = 0;
         double subtotalAmount = 0;
         Map<Integer, Integer> requestedStockByProduct = new HashMap<>();
 
-        for (ServletCarret.CartItem item : sessionCart.values()) {
-            double lineTotal = item.getPrice() * item.getQuantity();
-            items.add(new OrderItem(item.getProductId(), item.getName(), item.getPrice(), item.getQuantity(), lineTotal));
-            totalItems += item.getQuantity();
-            subtotalAmount += lineTotal;
-            requestedStockByProduct.merge(item.getProductId(), item.getQuantity(), Integer::sum);
+        if (!sessionCart.isEmpty()) {
+            for (ServletCarret.CartItem item : sessionCart.values()) {
+                double lineTotal = item.getPrice() * item.getQuantity();
+                items.add(new OrderItem(item.getProductId(), item.getName(), item.getPrice(), item.getQuantity(), lineTotal));
+                totalItems += item.getQuantity();
+                subtotalAmount += lineTotal;
+                requestedStockByProduct.merge(item.getProductId(), item.getQuantity(), Integer::sum);
+            }
+        } else {
+            // Fallback per evitar dependència estricta de cookie/sessió entre hosts (localhost vs 127.0.0.1).
+            List<OrderItem> requestItems = parseRequestCart(req);
+            for (OrderItem item : requestItems) {
+                items.add(item);
+                totalItems += item.quantity;
+                subtotalAmount += item.lineTotal;
+                requestedStockByProduct.merge(item.productId, item.quantity, Integer::sum);
+            }
+        }
+
+        if (items.isEmpty()) {
+            resp.getWriter().write(errorJson("El carret esta buit."));
+            return;
         }
 
         double vatAmount = subtotalAmount * VAT_RATE;
@@ -173,6 +186,46 @@ public class ServletComanda extends HttpServlet {
         sessionCart.clear();
 
         resp.getWriter().write("{\"status\":\"ok\",\"message\":\"Comanda creada correctament.\",\"order_id\":" + orderId + ",\"stock_updated\":true}");
+    }
+
+    private List<OrderItem> parseRequestCart(HttpServletRequest req) {
+        String[] rawProductIds = req.getParameterValues("cart_product_id");
+        String[] rawQuantities = req.getParameterValues("cart_quantity");
+        if (rawProductIds == null || rawQuantities == null) {
+            return Collections.emptyList();
+        }
+
+        int len = Math.min(rawProductIds.length, rawQuantities.length);
+        if (len <= 0) {
+            return Collections.emptyList();
+        }
+
+        List<OrderItem> items = new ArrayList<>();
+        for (int i = 0; i < len; i++) {
+            int productId;
+            int quantity;
+            try {
+                productId = Integer.parseInt(safe(rawProductIds[i]));
+                quantity = Integer.parseInt(safe(rawQuantities[i]));
+            } catch (NumberFormatException ex) {
+                continue;
+            }
+
+            if (productId <= 0 || quantity <= 0) {
+                continue;
+            }
+
+            Article article = RepositoriArticles.findById(productId);
+            if (article == null) {
+                continue;
+            }
+
+            double price = article.getPrice();
+            double lineTotal = price * quantity;
+            items.add(new OrderItem(productId, article.getName(), price, quantity, lineTotal));
+        }
+
+        return items;
     }
 
     private void handleFakePayment(HttpServletRequest req, HttpServletResponse resp, boolean requireAdmin) throws IOException {
@@ -366,6 +419,9 @@ public class ServletComanda extends HttpServlet {
     }
 
     private String escapeJson(String value) {
+        if (value == null) {
+            return "";
+        }
         return value
             .replace("\\", "\\\\")
             .replace("\"", "\\\"")
