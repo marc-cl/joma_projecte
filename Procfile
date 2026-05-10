@@ -1,0 +1,1 @@
+web: cd backend && mvn jetty:run -Djetty.port=$PORT
