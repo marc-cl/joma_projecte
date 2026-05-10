@@ -1,1 +1,1 @@
-web: cd backend && mvn jetty:run -Djetty.port=$PORT
+web: if [ -d "backend" ]; then cd backend; fi && mvn jetty:run -Djetty.port=$PORT
