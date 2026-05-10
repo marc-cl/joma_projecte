@@ -21,6 +21,7 @@
     <servlet-mapping>
         <servlet-name>ServletAuth</servlet-name>
         <url-pattern>/api/auth/login</url-pattern>
+        <url-pattern>/api/auth/register</url-pattern>
         <url-pattern>/api/auth/logout</url-pattern>
         <url-pattern>/api/auth/session</url-pattern>
     </servlet-mapping>

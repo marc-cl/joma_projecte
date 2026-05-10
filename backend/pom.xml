@@ -35,7 +35,7 @@
                         <port>8080</port>
                     </httpConnector>
                     <webApp>
-                        <contextPath>/backend-1.0-SNAPSHOT</contextPath>
+                        <contextPath>/</contextPath>
                     </webApp>
                 </configuration>
             </plugin>

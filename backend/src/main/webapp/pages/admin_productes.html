@@ -1,0 +1,86 @@
+﻿<!DOCTYPE html>
+<html lang="ca">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title data-i18n-title="admin.title">Admin | PONPAPERConnect</title>
+    <link rel="stylesheet" href="../css/style.css">
+    <link rel="stylesheet" href="../css/admin.css">
+  </head>
+  <body>
+    <header class="site-header">
+      <div class="logo">CIPEPONPAPER<span>Connect</span></div>
+      <nav class="site-nav">
+        <ul>
+          <li><a href="../index.html" data-i18n="nav.home">Inici</a></li>
+          <li><a href="productes.html" data-i18n="nav.products">Productes</a></li>
+          <li><a href="comandes.html" data-i18n="nav.orders">Comandes</a></li>
+          <li><a href="admin_productes.html" class="active" data-i18n="nav.admin">Admin</a></li>
+        </ul>
+      </nav>
+    </header>
+
+    <main class="admin-page">
+      <section class="admin-hero">
+        <h1 data-i18n="admin.panelTitle">Panell d'administracio</h1>
+        <p data-i18n="admin.panelSubtitle">Gestiona productes i comandes des d'un unic lloc.</p>
+      </section>
+
+      <section class="admin-tabs" aria-label="Gestio admin">
+        <button type="button" class="admin-tab active" data-tab="productes" data-i18n="admin.tabProducts">Gestio de productes</button>
+        <button type="button" class="admin-tab" data-tab="comandes" data-i18n="admin.tabOrders">Gestio de comandes</button>
+      </section>
+
+      <div id="adminPanelStatus" class="admin-status loading">Carregant dades d'administracio...</div>
+
+      <section id="tab-productes" class="admin-section active">
+        <h2 data-i18n="nav.products">Productes</h2>
+        <p class="admin-section-help" data-i18n="admin.productsHelp">Canvia l'estoc de qualsevol producte i desa els canvis.</p>
+
+        <section class="admin-table-wrap">
+          <table class="admin-table" id="productsTable">
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th data-i18n="admin.colProduct">Producte</th>
+                <th data-i18n="admin.colPrice">Preu</th>
+                <th data-i18n="admin.colCurrentStock">Estoc actual</th>
+                <th data-i18n="admin.colNewStock">Nou estoc</th>
+                <th data-i18n="admin.colAction">Accio</th>
+              </tr>
+            </thead>
+            <tbody id="productsBody"></tbody>
+          </table>
+        </section>
+      </section>
+
+      <section id="tab-comandes" class="admin-section">
+        <h2 data-i18n="nav.orders">Comandes</h2>
+        <p class="admin-section-help" data-i18n="admin.ordersHelp">Revisa les comandes i actualitza el seu estat.</p>
+
+        <section class="admin-table-wrap">
+          <table class="admin-table" id="ordersTable">
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th data-i18n="admin.colDate">Data</th>
+                <th data-i18n="admin.colClient">Client</th>
+                <th>Email</th>
+                <th data-i18n="cart.total">Total</th>
+                <th data-i18n="admin.colPayment">Pagament</th>
+                <th data-i18n="admin.colStatus">Estat</th>
+                <th data-i18n="admin.colSave">Guardar</th>
+              </tr>
+            </thead>
+            <tbody id="ordersBody"></tbody>
+          </table>
+        </section>
+      </section>
+    </main>
+
+    <script src="../js/config.js"></script>
+    <script src="../js/main.js"></script>
+    <script type="module" src="../js/admin-panel.js"></script>
+  </body>
+</html>
+
